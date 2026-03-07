@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --navy: #0D1B2A;
+    --blue: #1D6FA4;
+    --blue-pale: #EBF5FB;
+    --green: #0E7C59;
+    --green-pale: #E8F6F0;
+    --amber: #B45309;
+    --amber-pale: #FEF3C7;
+    --red: #C0392B;
+    --red-pale: #FDECEA;
+    --background: #F4F6F9;
+    --surface: #FFFFFF;
+    --surface-2: #F0F2F5;
+    --border: #E2E6ED;
+    --text: #1A2332;
+    --text-muted: #64748B;
+  }
+
+  body {
+    @apply bg-background text-text font-sans;
+  }
+}
