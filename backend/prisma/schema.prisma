@@ -1,0 +1,374 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  GESTIONNAIRE
+  COMMERCIAL
+  LECTEUR
+}
+
+enum VehicleStatus {
+  DISPONIBLE
+  LOUE
+  MAINTENANCE
+  HORS_SERVICE
+}
+
+enum Fuel {
+  DIESEL
+  ESSENCE
+  GPL
+}
+
+enum RentalStatus {
+  EN_COURS
+  TERMINEE
+  EN_RETARD
+  ANNULEE
+}
+
+enum MaintenanceType {
+  CORRECTIVE
+  PREVENTIVE
+  ACCIDENTELLE
+}
+
+enum MaintenanceStatus {
+  EN_ATTENTE
+  EN_COURS
+  TERMINEE
+  EN_RETARD
+}
+
+enum GarageStatus {
+  DISPONIBLE
+  OCCUPE
+  INDISPONIBLE
+}
+
+enum Specialty {
+  MECANIQUE_GENERALE
+  ELECTRICITE_AUTO
+  CARROSSERIE
+  PNEUMATIQUES_FREINS
+  MOTEUR_TRANSMISSION
+}
+
+enum StockMovementType {
+  ENTREE
+  SORTIE
+  TRANSFERT
+}
+
+enum StockLocationType {
+  ENTREPOT
+  GARAGE
+}
+
+enum SparePartCategory {
+  LUBRIFIANTS
+  FREINAGE
+  FILTRATION
+  MOTEUR
+  TRANSMISSION
+  SUSPENSION
+  ELECTRICITE
+  CARROSSERIE
+  AUTRE
+}
+
+enum InsuranceStatus {
+  ACTIVE
+  EXPIRANT_BIENTOT
+  EXPIREE
+}
+
+// ─── ENTITÉS ──────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role      @default(LECTEUR)
+  isActive     Boolean   @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  statusChanges       StatusHistory[]
+  kmChanges           KmHistory[]
+  clientReassignments VehicleClientHistory[]
+  stockMovements      StockMovement[]
+}
+
+model Client {
+  id           String    @id @default(uuid())
+  nom          String
+  secteur      String
+  adresse      String?
+  contactNom   String
+  contactEmail String
+  contactTel   String
+  couleur      String    // hex color pour UI ex: "#1D6FA4"
+  notes        String?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  vehicles       Vehicle[]
+  rentals        Rental[]
+  vehicleHistory VehicleClientHistory[]
+}
+
+model Vehicle {
+  id              String        @id @default(uuid())
+  immatriculation String        @unique // format: WW·NNNN·ALG ex: 16·2341·ALG
+  vin             String?       @unique
+  marque          String        // Fiat | Volkswagen | Renault
+  modele          String
+  annee           Int
+  km              Int
+  statut          VehicleStatus @default(DISPONIBLE)
+  carburant       Fuel          @default(DIESEL)
+  couleur         String?
+  notes           String?
+  clientId        String
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  client        Client             @relation(fields: [clientId], references: [id])
+  rentals       Rental[]
+  maintenances  Maintenance[]
+  insurances    InsurancePolicy[]
+  statusHistory StatusHistory[]
+  kmHistory     KmHistory[]
+  clientHistory VehicleClientHistory[]
+}
+
+// Log horodaté de chaque changement de statut d'un véhicule
+model StatusHistory {
+  id          String   @id @default(uuid())
+  vehicleId   String
+  fromStatus  String
+  toStatus    String
+  reason      String   // commentaire obligatoire
+  changedById String
+  changedAt   DateTime @default(now())
+
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+  changedBy User    @relation(fields: [changedById], references: [id])
+}
+
+// Historique des mises à jour kilométrage
+model KmHistory {
+  id          String   @id @default(uuid())
+  vehicleId   String
+  kmAvant     Int
+  kmApres     Int
+  changedById String
+  changedAt   DateTime @default(now())
+
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+  changedBy User    @relation(fields: [changedById], references: [id])
+}
+
+// Historique des réaffectations de véhicule entre clients
+model VehicleClientHistory {
+  id           String   @id @default(uuid())
+  vehicleId    String
+  fromClientId String?
+  toClientId   String
+  reason       String?
+  changedById  String
+  changedAt    DateTime @default(now())
+
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+  toClient  Client  @relation(fields: [toClientId], references: [id])
+  changedBy User    @relation(fields: [changedById], references: [id])
+}
+
+model Rental {
+  id             String       @id @default(uuid())
+  vehicleId      String
+  clientId       String
+  dateDebut      DateTime
+  dateFinPrevue  DateTime
+  dateFinReelle  DateTime?
+  statut         RentalStatus @default(EN_COURS)
+  montantMensuel Float?       // en DA
+  devise         String       @default("DA")
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+  client  Client  @relation(fields: [clientId], references: [id])
+}
+
+// Garage prestataire externe (renommé depuis Mechanic — PAS de mécanicien interne)
+model Garage {
+  id         String       @id @default(uuid())
+  nom        String       // nom de la société prestataire
+  adresse    String
+  ville      String
+  telephone  String
+  email      String?
+  specialite Specialty?
+  statut     GarageStatus @default(DISPONIBLE)
+  notes      String?
+  deletedAt  DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  // Relations
+  maintenances   Maintenance[]
+  stockLocations StockLocation[]
+}
+
+model Maintenance {
+  id               String            @id @default(uuid())
+  vehicleId        String
+  garageId         String
+  type             MaintenanceType
+  nature           String            // texte libre
+  dateEntree       DateTime
+  dateSortiePrevue DateTime
+  dateSortieReelle DateTime?
+  statut           MaintenanceStatus @default(EN_ATTENTE)
+  coutEstime       Float?
+  coutReel         Float?
+  rapport          String?           // obligatoire à la clôture (étape 4)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  vehicle        Vehicle           @relation(fields: [vehicleId], references: [id])
+  garage         Garage            @relation(fields: [garageId], references: [id])
+  parts          MaintenancePart[]
+  stockMovements StockMovement[]
+}
+
+model SparePart {
+  id             String            @id @default(uuid())
+  reference      String            @unique
+  designation    String
+  categorie      SparePartCategory
+  unite          String            // ex: Litre, Pièce, Kit, Jeu
+  prixUnitaire   Float
+  seuilAlerte    Int               // email/alerte quand qte <= seuilAlerte
+  seuilCritique  Int               // alerte critique quand qte <= seuilCritique
+  notes          String?
+  deletedAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  // Relations
+  stockEntries     StockEntry[]
+  movements        StockMovement[]
+  maintenanceParts MaintenancePart[]
+}
+
+model StockLocation {
+  id       String            @id @default(uuid())
+  nom      String            // ex: Entrepôt Central, Garage Belcourt
+  type     StockLocationType
+  garageId String?           // si type=GARAGE
+  adresse  String?
+
+  garage        Garage?       @relation(fields: [garageId], references: [id])
+  entries       StockEntry[]
+  movementsFrom StockMovement[] @relation("FromLocation")
+  movementsTo   StockMovement[] @relation("ToLocation")
+}
+
+// Quantité d'une pièce dans un emplacement donné
+model StockEntry {
+  id          String   @id @default(uuid())
+  sparePartId String
+  locationId  String
+  quantite    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  sparePart SparePart     @relation(fields: [sparePartId], references: [id])
+  location  StockLocation @relation(fields: [locationId], references: [id])
+
+  @@unique([sparePartId, locationId])
+}
+
+// Historique tracé de chaque mouvement de stock
+model StockMovement {
+  id             String            @id @default(uuid())
+  sparePartId    String
+  fromLocationId String?
+  toLocationId   String?
+  type           StockMovementType
+  quantite       Int
+  maintenanceId  String?           // lien optionnel si sortie liée à intervention
+  operatorId     String
+  notes          String?
+  createdAt      DateTime          @default(now())
+
+  sparePart    SparePart      @relation(fields: [sparePartId], references: [id])
+  fromLocation StockLocation? @relation("FromLocation", fields: [fromLocationId], references: [id])
+  toLocation   StockLocation? @relation("ToLocation", fields: [toLocationId], references: [id])
+  maintenance  Maintenance?   @relation(fields: [maintenanceId], references: [id])
+  operator     User           @relation(fields: [operatorId], references: [id])
+}
+
+// Pièces consommées dans une intervention
+model MaintenancePart {
+  id                   String @id @default(uuid())
+  maintenanceId        String
+  sparePartId          String
+  quantite             Int
+  prixUnitaireApplique Float  // snapshot prix au moment de l'intervention
+
+  maintenance Maintenance @relation(fields: [maintenanceId], references: [id])
+  sparePart   SparePart   @relation(fields: [sparePartId], references: [id])
+}
+
+model InsurancePolicy {
+  id             String          @id @default(uuid())
+  vehicleId      String
+  compagnie      String
+  numeroPolice   String
+  typeCouverture String          // ex: Tous risques, Tiers
+  dateDebut      DateTime
+  dateEcheance   DateTime
+  primeMontant   Float           // DA/an
+  statut         InsuranceStatus @default(ACTIVE)
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+}
+
+// Historique des alertes InApp — lu/non-lu
+model AlertLog {
+  id         String    @id @default(uuid())
+  type       String    // INSURANCE_EXPIRY_30 | INSURANCE_EXPIRY_7 | INSURANCE_EXPIRED
+                       // RENTAL_OVERDUE | MAINTENANCE_OVERDUE | STOCK_LOW | STOCK_CRITICAL
+  entityId   String    // ID de l'entité concernée
+  entityType String    // Vehicle | SparePart | Rental | Maintenance | InsurancePolicy
+  message    String
+  readAt     DateTime? // null = non lu, DateTime = lu
+  createdAt  DateTime  @default(now())
+}
