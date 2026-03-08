@@ -651,6 +651,7 @@ DISPONIBLE → MAINTENANCE   (création Maintenance → side effect: Maintenance
 DISPONIBLE → HORS_SERVICE  (action manuelle ADMIN uniquement)
 LOUE       → DISPONIBLE    (clôture Rental → side effect: Rental.statut = TERMINEE)
 LOUE       → MAINTENANCE   (entrée urgente → Rental mise en pause)
+LOUE       → HORS_SERVICE  (accident grave / panne irréparable — ADMIN only, motif obligatoire → Rental.statut = ANNULEE)
 MAINTENANCE → DISPONIBLE   (clôture Maintenance étape 4 → side effect: Maintenance.statut = TERMINEE)
 MAINTENANCE → HORS_SERVICE (décision post-maintenance)
 HORS_SERVICE → DISPONIBLE  (réhabilitation ADMIN uniquement)
@@ -985,7 +986,7 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 |----------|-------------|--------|
 | Export PDF | jsPDF (navigateur) | Puppeteer trop lourd sur VPS 4Go RAM |
 | Alertes V1 | InApp uniquement | Éviter complexité SMTP en V1 |
-| Alertes email | Reporté V2 | Nodemailer exclus du scope |
+| Alertes email | Fonctionnalité premium V2 | Non incluse package V1 |
 | Mechanic | Renommé Garage | Modèle métier : uniquement prestataires externes, pas d'employés internes |
 | Module Locations | Dédié (M11) | Cœur métier LLD — absorbé dans fiche véhicule était insuffisant |
 | Soft delete | Universel | User + Vehicle + Client + Garage + SparePart |
@@ -995,8 +996,55 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 | Stack | Node.js 20 + React 18 | Léger sur VPS 4Go, Claude Code optimisé pour ce stack, cohérence TS full-stack |
 | VPS staging | À définir | Agnostique — n'importe quel VPS Linux avec Docker |
 | Versioning | Semantic Versioning | Tags v1.0.0 sur merge main via GitHub Actions |
+| Backup BDD V1 | pg_dump local quotidien | Rétention 7j, gratuit |
+| Backup BDD V2 | Externe + restauration UI | Premium, hors scope V1 |
+| Swagger | swagger-jsdoc (Option A) | Intégré Sprint 2, usage interne dev + livrable client futur |
+| Staging | Prod uniquement en V1 | Préprod si chantier majeur uniquement |
+| Données seed | Cosider/Sonatrach/etc. | Démo uniquement, pas des données client réelles |
 
 ---
 
-*Dernière mise à jour : Mars 2026 — Session recueil de besoin Product Owner complète.*
+## 14. Seed & Données de démonstration
+
+- Le seed (`prisma/seed.ts`) est **UNIQUEMENT pour dev et staging**
+- En production : l'application démarre avec 0 données (0 véhicules, 0 clients, 0 pièces, 0 utilisateurs sauf le compte admin initial)
+- La commande `prisma db seed` ne doit **JAMAIS** s'exécuter en `NODE_ENV=production`
+- Vérifier que `ci.yml` et `deploy.yml` respectent cette règle
+- L'UI doit gérer les **empty states** proprement sur toutes les pages : tableaux vides, dashboard sans données, messages "Aucun élément — Ajouter le premier"
+
+---
+
+## 15. Points ouverts à clarifier avec le client
+
+- Remplacement véhicule en cours de location : nouvelle location ou modification de l'existante ?
+- Ristourne financière accident : clause contractuelle existante ?
+- Validation des enrichissements BDD non facturés : KmHistory + VehicleClientHistory
+- Confirmation personas utilisateurs par rôle (noms et postes réels)
+
+**Hors périmètre V1 (à ne pas implémenter) :**
+- Gestion du véhicule de remplacement
+- Calcul de ristourne financière
+
+---
+
+## 16. Sprint 2 — Périmètre
+
+- CRUD Véhicules complet avec automate d'états
+- Transition LOUE → HORS_SERVICE (cf. section 5.1)
+- Module Locations LLD (cœur métier)
+- Intégration Swagger (swagger-jsdoc Option A)
+- Empty states UI sur toutes les pages
+- Vérification seed non exécuté en prod (deploy.yml)
+
+---
+
+## 17. Leçons apprises Sprint 1
+
+- `prisma generate` **DOIT** précéder lint et build dans la CI (sans ça : TS2305 PrismaClient/Role non trouvés)
+- Toujours vérifier 0 erreurs lint + typecheck en local avant de committer
+- La branche PR doit cibler `develop`, jamais `main` directement
+
+---
+
+*Dernière mise à jour : Mars 2026 — Sprint 1 terminé (v0.1.0), Sprint 2 en préparation.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*
