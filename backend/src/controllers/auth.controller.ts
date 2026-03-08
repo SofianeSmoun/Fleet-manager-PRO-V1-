@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { loginService, refreshService } from '../services/auth.service';
+import { loginService, refreshService, forgotPasswordService, resetPasswordService } from '../services/auth.service';
 
 const REFRESH_COOKIE = 'refresh_token';
 const COOKIE_OPTIONS = {
@@ -58,4 +58,25 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
 export function logout(_req: Request, res: Response): void {
   res.clearCookie(REFRESH_COOKIE, { path: '/api/v1/auth' });
   res.status(200).json({ message: 'Déconnexion réussie' });
+}
+
+export async function forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { email } = req.body as { email: string };
+    await forgotPasswordService(email);
+    // Toujours 200 même si email inexistant (sécurité)
+    res.status(200).json({ message: 'Si cet email existe, un lien de réinitialisation a été généré.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { token, newPassword } = req.body as { token: string; newPassword: string };
+    await resetPasswordService(token, newPassword);
+    res.status(200).json({ message: 'Mot de passe réinitialisé avec succès.' });
+  } catch (err) {
+    next(err);
+  }
 }

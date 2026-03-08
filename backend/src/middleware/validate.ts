@@ -14,7 +14,7 @@ export function validate(schema: ZodSchema) {
       });
       return;
     }
-    req.body = result.data;
+    req.body = result.data as unknown;
     next();
   };
 }

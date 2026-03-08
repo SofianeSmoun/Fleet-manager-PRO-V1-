@@ -1,6 +1,151 @@
-# CLAUDE.md — FleetManager Pro V1
-> Fichier de référence pour Claude Code. À lire intégralement avant toute action sur ce projet.
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
+# FleetManager Pro V1 — Contexte projet complet
 > Référence : FMP-CDC-001 | Backlog : FMP-BKL-001 | Repo : https://github.com/SofianeSmoun/Fleet-manager-PRO-V1-.git
+
+---
+
+## Commands
+
+> ⚠️ **WSL obligatoire** : toutes les commandes Node/pnpm doivent être exécutées via WSL avec le PATH nvm explicite.
+> Template : `wsl bash -c "export PATH='/home/sofiane/.nvm/versions/node/v20.20.1/bin:$PATH' && cd /home/sofiane/Fleet-manager-PRO-V1- && <cmd>"`
+
+### Infrastructure
+
+```bash
+# Démarrer PostgreSQL (Docker)
+docker compose up -d postgres
+
+# Vérifier que le container est healthy
+docker ps --format '{{.Names}} {{.Status}}'
+```
+
+### Backend (`backend/`)
+
+```bash
+# Développement (hot-reload)
+pnpm --filter backend run dev          # port 3000
+
+# TypeScript check (OBLIGATOIRE avant commit)
+pnpm --filter backend run typecheck
+
+# Tests Vitest + Supertest (nécessite Docker postgres running)
+pnpm --filter backend run test
+
+# Un seul test par fichier
+pnpm --filter backend exec vitest run src/tests/auth.test.ts
+
+# Couverture
+pnpm --filter backend run test:coverage
+
+# Migrations Prisma
+pnpm --filter backend exec npx prisma migrate dev --name <nom>
+pnpm --filter backend exec npx prisma migrate deploy   # production
+
+# Seed base de données (~3.6s)
+pnpm --filter backend run db:seed
+
+# Prisma Studio (UI base de données)
+pnpm --filter backend run db:studio
+```
+
+### Frontend (`frontend/`)
+
+```bash
+# Développement (hot-reload)
+pnpm --filter frontend run dev         # port 8080
+
+# TypeScript check
+pnpm --filter frontend run typecheck
+
+# Build production
+pnpm --filter frontend run build
+```
+
+### Monorepo (racine)
+
+```bash
+# Lint tous les packages
+pnpm run lint
+
+# Typecheck tous les packages
+pnpm run typecheck
+
+# Install toutes les dépendances
+pnpm install
+```
+
+---
+
+## Architecture
+
+### Monorepo pnpm workspaces
+
+```
+/
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma          ← source de vérité absolue de la DB
+│   │   ├── migrations/            ← historique SQL (commité dans git)
+│   │   └── seed.ts                ← 4 users · 4 clients · 120 véhicules · 6 garages · 10 pièces · 120 polices
+│   └── src/
+│       ├── index.ts               ← Express app + montage routes (export default app pour tests)
+│       ├── lib/
+│       │   ├── prisma.ts          ← singleton PrismaClient
+│       │   ├── logger.ts          ← Winston + DailyRotateFile (JSON structuré)
+│       │   └── schemas.ts         ← schemas Zod partagés (login, forgotPassword, resetPassword)
+│       ├── middleware/
+│       │   ├── auth.ts            ← authenticate (JWT verify + DB lookup) + requireRole
+│       │   ├── validate.ts        ← factory Zod middleware → 422 si invalide
+│       │   ├── errorHandler.ts    ← ZodError→422, {statusCode}→code, sinon 500
+│       │   └── notFound.ts        ← 404 catch-all
+│       ├── routes/auth.routes.ts  ← rate limit 10/min + login/refresh/logout/forgot/reset
+│       ├── controllers/           ← handlers HTTP, délèguent aux services
+│       ├── services/auth.service.ts ← loginService, refreshService, forgotPasswordService, resetPasswordService
+│       └── tests/auth.test.ts     ← 11 tests Supertest (tous passent)
+└── frontend/
+    └── src/
+        ├── main.tsx               ← QueryClient (staleTime 5min) + BrowserRouter
+        ├── App.tsx                ← routes : /login → LoginPage, /dashboard (E2)
+        ├── lib/axios.ts           ← instance Axios + intercepteur auto-refresh JWT
+        ├── types/index.ts         ← enums TypeScript miroir du schema Prisma
+        └── pages/LoginPage.tsx    ← formulaire + 4 boutons quick-login démo
+```
+
+### Flux d'authentification
+
+```
+Login  → POST /api/v1/auth/login  → access_token (body) + refresh_token (httpOnly cookie, 7j)
+Refresh → POST /api/v1/auth/refresh → rotation : nouveau access_token + nouveau refresh_token
+Logout  → POST /api/v1/auth/logout  → cookie expiré
+Forgot  → POST /api/v1/auth/forgot-password → UUID token loggué (TTL 30min, pas d'email V1)
+Reset   → POST /api/v1/auth/reset-password  → bcrypt cost 12, token invalidé après usage
+```
+
+Le `access_token` est stocké **en mémoire** côté frontend (`getAccessToken()`/`setAccessToken()` dans `LoginPage.tsx`). L'intercepteur Axios tente un refresh automatique sur 401.
+
+### Middleware chain Express
+
+```
+helmet → cors → rateLimit → cookieParser → json → routes → errorHandler → notFound
+```
+
+### Base de données — connexion
+
+- Container Docker : `fleetmanager_postgres` (port 5432)
+- Credentials : `fleetmanager:fleetmanager_dev` (DB: `fleetmanager`)
+- `DATABASE_URL` dans `backend/.env` : `postgresql://fleetmanager:fleetmanager_dev@localhost:5432/fleetmanager`
+
+### Points de vigilance
+
+- **`exactOptionalPropertyTypes: true`** dans tsconfig — les headers Supertest comme `res.headers['set-cookie']` doivent être typés via `unknown` puis narrowés, jamais castés directement en `string[]`.
+- **`StringValue` de `ms`** requis pour `jwt.sign({ expiresIn })` — cast obligatoire depuis `string`.
+- Le schema Prisma est la **source de vérité** — toujours migrer avant de coder la logique métier.
+- Les erreurs métier utilisent `Object.assign(new Error('msg'), { statusCode: 4xx })` — capturé par `errorHandler`.
 
 ---
 

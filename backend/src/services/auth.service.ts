@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import type { StringValue } from 'ms';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
@@ -83,6 +84,66 @@ export async function loginService(
 
   logger.info('Login réussi', { userId: user.id, email, role: user.role, ip });
   return { user: authUser, tokens };
+}
+
+// ─── Forgot / Reset password ───────────────────────────────────────────────────
+
+const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+export async function forgotPasswordService(email: string): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: { email, deletedAt: null, isActive: true },
+  });
+
+  if (!user) {
+    // Toujours retourner sans erreur (sécurité — ne pas révéler si l'email existe)
+    logger.info('Forgot password — email inconnu (ignoré silencieusement)', { email });
+    return;
+  }
+
+  const token = randomUUID();
+  const expiry = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { resetToken: token, resetTokenExpiry: expiry },
+  });
+
+  // En V1 : pas d'email — on logue le token pour les tests
+  logger.info('Forgot password — reset token généré', {
+    userId: user.id,
+    email,
+    token,
+    expiresAt: expiry.toISOString(),
+  });
+}
+
+export async function resetPasswordService(token: string, newPassword: string): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: {
+      resetToken: token,
+      resetTokenExpiry: { gt: new Date() },
+      deletedAt: null,
+      isActive: true,
+    },
+  });
+
+  if (!user) {
+    throw Object.assign(new Error('Token invalide ou expiré'), { statusCode: 401 });
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      resetToken: null,
+      resetTokenExpiry: null,
+    },
+  });
+
+  logger.info('Reset password réussi', { userId: user.id, email: user.email });
 }
 
 export async function refreshService(

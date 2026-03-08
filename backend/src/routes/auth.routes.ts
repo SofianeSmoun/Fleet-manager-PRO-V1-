@@ -1,8 +1,8 @@
 import { Router, type IRouter } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { login, refresh, logout } from '../controllers/auth.controller';
+import { login, refresh, logout, forgotPassword, resetPassword } from '../controllers/auth.controller';
 import { validate } from '../middleware/validate';
-import { loginSchema } from '../lib/schemas';
+import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../lib/schemas';
 
 const authRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
@@ -15,8 +15,10 @@ const authRateLimit = rateLimit({
 
 const router: IRouter = Router();
 
-router.post('/login', authRateLimit, validate(loginSchema), login);
-router.post('/refresh', authRateLimit, refresh);
+router.post('/login', authRateLimit, validate(loginSchema), (req, res, next) => { void login(req, res, next); });
+router.post('/refresh', authRateLimit, (req, res, next) => { void refresh(req, res, next); });
 router.post('/logout', logout);
+router.post('/forgot-password', authRateLimit, validate(forgotPasswordSchema), (req, res, next) => { void forgotPassword(req, res, next); });
+router.post('/reset-password', authRateLimit, validate(resetPasswordSchema), (req, res, next) => { void resetPassword(req, res, next); });
 
 export { router as authRouter };

@@ -11,13 +11,8 @@ export interface AuthPayload {
   exp: number;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: AuthPayload;
-    }
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-namespace
+declare global { namespace Express { interface Request { user?: AuthPayload } } }
 
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers['authorization'];
