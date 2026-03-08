@@ -56,6 +56,9 @@ jobs:
       - name: Typecheck frontend
         run: pnpm --filter frontend typecheck
 
+      - name: Generate Prisma client (backend)
+        run: pnpm --filter backend db:generate
+
       - name: Typecheck backend
         run: pnpm --filter backend typecheck
 

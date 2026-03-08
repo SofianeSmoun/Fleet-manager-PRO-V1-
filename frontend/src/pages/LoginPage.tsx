@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
 import { api } from '../lib/axios';
+import { setAccessToken } from '../lib/auth-token';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -14,12 +15,6 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
-
-// ─── Token store (in-memory) ──────────────────────────────────────────────────
-
-let _accessToken: string | null = null;
-export function getAccessToken(): string | null { return _accessToken; }
-export function setAccessToken(t: string | null): void { _accessToken = t; }
 
 // ─── Demo accounts ────────────────────────────────────────────────────────────
 
@@ -52,8 +47,10 @@ export default function LoginPage(): JSX.Element {
       setAccessToken(res.data.access_token);
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setServerError(err.response.data.message as string);
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as Record<string, unknown> | undefined;
+        const msg = typeof data?.['message'] === 'string' ? data['message'] : null;
+        setServerError(msg ?? 'Une erreur est survenue. Veuillez réessayer.');
       } else {
         setServerError('Une erreur est survenue. Veuillez réessayer.');
       }
@@ -99,7 +96,7 @@ export default function LoginPage(): JSX.Element {
           </div>
 
           {/* Formulaire */}
-          <form onSubmit={handleSubmit((d) => void doLogin(d.email, d.password))} noValidate>
+          <form onSubmit={(e) => { void handleSubmit((d) => void doLogin(d.email, d.password))(e); }} noValidate>
             <div className="space-y-4">
               {/* Email */}
               <div>
