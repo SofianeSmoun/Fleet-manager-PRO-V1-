@@ -5,6 +5,12 @@ import { prisma } from '../lib/prisma';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
+interface AuthResponseBody {
+  access_token: string;
+  token_type: string;
+  user: { id: string; email: string; firstName: string; lastName: string; role: string };
+}
+
 const ADMIN_EMAIL = 'admin@fleetmanager.dz';
 const ADMIN_PASSWORD = 'Admin2026!';
 
@@ -20,7 +26,7 @@ describe('Auth — POST /api/v1/auth/login', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('access_token');
     expect(res.body).toHaveProperty('token_type', 'Bearer');
-    expect(res.body.user).toMatchObject({
+    expect((res.body as AuthResponseBody).user).toMatchObject({
       email: ADMIN_EMAIL,
       role: 'ADMIN',
     });
@@ -122,7 +128,7 @@ describe('Auth — Middleware authenticate', () => {
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
     });
-    const token = loginRes.body.access_token as string;
+    const token = (loginRes.body as AuthResponseBody).access_token;
 
     // Vérifie que le token est bien formé (JWT 3 parties)
     expect(token.split('.')).toHaveLength(3);
@@ -138,11 +144,11 @@ describe('Auth — RBAC requireRole', () => {
     });
 
     expect(loginRes.status).toBe(200);
-    expect(loginRes.body.user.role).toBe('LECTEUR');
+    expect((loginRes.body as AuthResponseBody).user.role).toBe('LECTEUR');
 
     // Le token est valide mais le rôle est insuffisant pour les routes ADMIN
     // La vérification effective du 403 sera testée en E2+ quand les routes seront montées
-    const token = loginRes.body.access_token as string;
+    const token = (loginRes.body as AuthResponseBody).access_token;
     expect(token).toBeTruthy();
   });
 });

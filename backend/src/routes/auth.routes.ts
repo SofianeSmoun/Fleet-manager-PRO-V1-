@@ -15,10 +15,10 @@ const authRateLimit = rateLimit({
 
 const router: IRouter = Router();
 
-router.post('/login', authRateLimit, validate(loginSchema), login);
-router.post('/refresh', authRateLimit, refresh);
+router.post('/login', authRateLimit, validate(loginSchema), (req, res, next) => { void login(req, res, next); });
+router.post('/refresh', authRateLimit, (req, res, next) => { void refresh(req, res, next); });
 router.post('/logout', logout);
-router.post('/forgot-password', authRateLimit, validate(forgotPasswordSchema), forgotPassword);
-router.post('/reset-password', authRateLimit, validate(resetPasswordSchema), resetPassword);
+router.post('/forgot-password', authRateLimit, validate(forgotPasswordSchema), (req, res, next) => { void forgotPassword(req, res, next); });
+router.post('/reset-password', authRateLimit, validate(resetPasswordSchema), (req, res, next) => { void resetPassword(req, res, next); });
 
 export { router as authRouter };
