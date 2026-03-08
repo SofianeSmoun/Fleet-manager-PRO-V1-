@@ -1046,5 +1046,52 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 
 ---
 
+## 18. Tests & TNR
+
+### Stratégie générale
+
+- **Sprint 1-2** : pas de tests obligatoires, focus livraison
+- **Sprint 3+** : TNR automatisés obligatoires sur chaque PR
+- Tout nouveau module livré doit embarquer ses tests
+- Les tests font partie de la Definition of Done à partir du Sprint 3
+
+### Stack de tests
+
+| Type | Outil | Cibles |
+|------|-------|--------|
+| Unitaires services | Jest + ts-jest | vehicleService (transitions), stockService (mouvements), alertService (règles), rentalService (statuts) |
+| Intégration API | Supertest + Jest | auth, CRUD véhicules, workflow intervention complet, transitions états véhicule (valides ET invalides) |
+| E2E | Playwright | login → action critique → vérification résultat, scénarios métier complets (intervention, clôture, stock) |
+
+### Règles d'écriture du code (applicables dès Sprint 2)
+
+Pour que les tests Sprint 3 soient efficaces, tout le code doit être écrit selon ces principes dès maintenant :
+
+- **Zéro logique métier dans les controllers** (controllers = orchestration uniquement)
+- **Toute logique métier dans les services** (vehicleService, rentalService, stockService...)
+- Services injectables et mockables (pas de dépendances directes à prisma dans les controllers)
+- Chaque fonction de service = une responsabilité unique
+- Les transitions d'états centralisées dans `vehicleService.ts` UNIQUEMENT (déjà en place — à maintenir)
+
+### Couverture minimale exigée (Sprint 3+)
+
+- vehicleService : 100% des transitions (valides + invalides)
+- stockService : mouvements ENTREE / SORTIE / TRANSFERT
+- authService : login, refresh, logout, reset password
+- Workflow intervention : les 4 étapes de bout en bout
+- Chaque endpoint API : 1 test positif + 1 test négatif minimum
+
+### Intégration CI/CD (Sprint 3+)
+
+Ajouter un job `test` dans `ci.yml` :
+
+- S'exécute après lint et typecheck
+- Nécessite un service PostgreSQL (container `postgres:16`)
+- Exécute `prisma migrate deploy` + `prisma db seed` avant les tests
+- Commande : `pnpm --filter backend test`
+- Le job doit passer pour autoriser le merge de la PR
+
+---
+
 *Dernière mise à jour : Mars 2026 — Sprint 1 terminé (v0.1.0), Sprint 2 en préparation.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*
