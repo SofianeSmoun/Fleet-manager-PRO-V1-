@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -6,8 +6,9 @@ import { rateLimit } from 'express-rate-limit';
 import { logger } from './lib/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import { authRouter } from './routes/auth.routes';
 
-const app = express();
+const app: Express = express();
 const PORT = process.env['PORT'] ?? 3000;
 
 // Security middleware
@@ -20,7 +21,7 @@ app.use(
 );
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 min
+    windowMs: 15 * 60 * 1000, // 15 min — global
     max: 200,
     standardHeaders: true,
     legacyHeaders: false,
@@ -37,9 +38,9 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API routes — branchées au fur et à mesure des épics
-// app.use('/api/v1/auth', authRouter);
-// app.use('/api/v1/vehicles', vehiclesRouter);
+// API routes
+app.use('/api/v1/auth', authRouter);
+// app.use('/api/v1/vehicles', vehiclesRouter);  — E2
 
 // Error handling
 app.use(notFound);
