@@ -996,11 +996,15 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 | Stack | Node.js 20 + React 18 | Léger sur VPS 4Go, Claude Code optimisé pour ce stack, cohérence TS full-stack |
 | VPS staging | À définir | Agnostique — n'importe quel VPS Linux avec Docker |
 | Versioning | Semantic Versioning | Tags v1.0.0 sur merge main via GitHub Actions |
-| Backup BDD V1 | pg_dump local quotidien | Rétention 7j, gratuit |
-| Backup BDD V2 | Externe + restauration UI | Premium, hors scope V1 |
+| Backup BDD | Google Drive + AES-256-GCM | Gratuit (15 Go), chiffré, compte client (cf. section 19) |
 | Swagger | swagger-jsdoc (Option A) | Intégré Sprint 2, usage interne dev + livrable client futur |
 | Staging | Prod uniquement en V1 | Préprod si chantier majeur uniquement |
 | Données seed | Cosider/Sonatrach/etc. | Démo uniquement, pas des données client réelles |
+| AuditLog | Table dédiée + middleware auto | Traçabilité métier Sprint 2 (cf. section 20) |
+| BullMQ + Redis | Écarté | Over-engineering pour 7 jobs/jour — node-cron suffisant V1 |
+| Grafana + Loki | Écarté | Overkill pour 3 users — Winston + UptimeRobot suffisants V1 |
+| Backblaze B2 | Écarté | Données hors territoire national algérien |
+| Backup local client | Écarté | Dépendance infrastructure non maîtrisée |
 
 ---
 
@@ -1027,14 +1031,33 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 
 ---
 
-## 16. Sprint 2 — Périmètre
+## 16. Sprint 2 — Backlog final
 
-- CRUD Véhicules complet avec automate d'états
-- Transition LOUE → HORS_SERVICE (cf. section 5.1)
-- Module Locations LLD (cœur métier)
-- Intégration Swagger (swagger-jsdoc Option A)
-- Empty states UI sur toutes les pages
-- Vérification seed non exécuté en prod (deploy.yml)
+| Story | Description |
+|-------|-------------|
+| E2-S1 | CRUD Véhicules complet (liste, fiche, création, modification) |
+| E2-S2 | Automate d'états véhicule — vehicleService.ts centralisé (LOGIQUE ICI UNIQUEMENT) |
+| E2-S3 | Transition LOUE→HORS_SERVICE (ADMIN only, Rental→ANNULEE auto) |
+| E2-S4 | Historique statuts — StatusHistory + commentaire obligatoire |
+| E2-S5 | Module Locations LLD (CRUD Rental, statuts, dates) |
+| E2-S6 | Export Excel liste véhicules filtrée |
+| E2-S7 | Swagger (swagger-jsdoc Option A — usage dev interne) |
+| E2-S8 | Table AuditLog schema Prisma + middleware écriture automatique |
+| E2-S9 | Tests unitaires vehicleService Jest |
+| E2-S10 | Empty states UI flotte/locations |
+| E2-S11 | Widget backup dashboard admin (BackupLog statut + historique) |
+| E2-S12 | Seed bloqué NODE_ENV=production |
+
+**Infra pré-Sprint 2 (à faire avant démarrage) :**
+
+| Ticket | Description |
+|--------|-------------|
+| INFRA-01 | Compte Google Drive dev + Service Account + clé JSON |
+| INFRA-02 | Script backup pg_dump → gzip → AES-256-GCM → Google Drive |
+| INFRA-03 | Cron hebdomadaire dimanche 02h00 + retry automatique |
+| INFRA-04 | Table BackupLog schema Prisma + migration |
+| INFRA-05 | Test chiffrement + déchiffrement + restauration complète |
+| INFRA-06 | Document livrable client (compte Google + clé + procédure restauration) |
 
 ---
 
@@ -1048,12 +1071,15 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 
 ## 18. Tests & TNR
 
-### Stratégie générale
+### Stratégie générale (mise à jour revue externe Mars 2026)
 
-- **Sprint 1-2** : pas de tests obligatoires, focus livraison
-- **Sprint 3+** : TNR automatisés obligatoires sur chaque PR
+- **Règle** : les tests unitaires sont écrits **EN MÊME TEMPS** que le service métier, pas après
+- **Sprint 2** : tests unitaires vehicleService (automate d'états — Jest) — **OBLIGATOIRE**
+- **Sprint 3** : tests unitaires maintenanceService + stockService
+- **Sprint 4+** : tests d'intégration API (Supertest) sur les endpoints critiques
+- **Sprint 7-8** : tests E2E Playwright (optionnel V1)
 - Tout nouveau module livré doit embarquer ses tests
-- Les tests font partie de la Definition of Done à partir du Sprint 3
+- Les tests font partie de la Definition of Done à partir du Sprint 2
 
 ### Stack de tests
 
@@ -1073,12 +1099,12 @@ Pour que les tests Sprint 3 soient efficaces, tout le code doit être écrit sel
 - Chaque fonction de service = une responsabilité unique
 - Les transitions d'états centralisées dans `vehicleService.ts` UNIQUEMENT (déjà en place — à maintenir)
 
-### Couverture minimale exigée (Sprint 3+)
+### Cibles prioritaires Jest
 
-- vehicleService : 100% des transitions (valides + invalides)
-- stockService : mouvements ENTREE / SORTIE / TRANSFERT
-- authService : login, refresh, logout, reset password
-- Workflow intervention : les 4 étapes de bout en bout
+- **vehicleService** : toutes les transitions autorisées + toutes les transitions interdites (HTTP 400)
+- **maintenanceService** : workflow 4 étapes complet
+- **stockService** : mouvements ENTREE / SORTIE / TRANSFERT
+- **authService** : login, refresh, logout, reset password
 - Chaque endpoint API : 1 test positif + 1 test négatif minimum
 
 ### Intégration CI/CD (Sprint 3+)
@@ -1093,5 +1119,72 @@ Ajouter un job `test` dans `ci.yml` :
 
 ---
 
-*Dernière mise à jour : Mars 2026 — Sprint 1 terminé (v0.1.0), Sprint 2 en préparation.*
+## 19. Backup base de données — Google Drive + AES-256-GCM
+
+### Solution retenue
+
+- **Stockage** : Google Drive via API (Service Account Google)
+- **Chiffrement** : AES-256-GCM (module `crypto` natif Node.js) — le backup n'est JAMAIS stocké en clair
+- **Fréquence** : hebdomadaire (dimanche 02h00, scheduler node-cron)
+- **Retry** : automatique quotidien si échec, jusqu'à 3 tentatives consécutives
+- **Env dev** : compte Google Drive dédié dev (Service Account JSON dans .env)
+- **Env prod** : compte Google Drive créé pour le client, livré avec la V1
+- **Clé de chiffrement** : variable `BACKUP_ENCRYPTION_KEY` dans .env (32 bytes hex, `openssl rand -hex 32`)
+- **Restauration** : automatique via l'application (déchiffrement intégré AES-256-GCM)
+- **Historisation** : table `BackupLog` dans Prisma
+- **Dashboard** : widget admin affichant statut + historique 10 dernières backups + bouton backup manuelle
+
+### Variables d'environnement (à ajouter dans `.env.example`)
+
+```bash
+BACKUP_ENCRYPTION_KEY=        # 32 bytes hex — openssl rand -hex 32
+GOOGLE_DRIVE_CLIENT_EMAIL=    # email du Service Account Google
+GOOGLE_DRIVE_PRIVATE_KEY=     # clé privée du Service Account (JSON)
+GOOGLE_DRIVE_FOLDER_ID=       # ID du dossier Google Drive destination
+```
+
+### Pourquoi pas les alternatives
+
+| Alternative | Raison du rejet |
+|-------------|----------------|
+| Backblaze B2 | Données hors territoire national algérien |
+| Stockage local client | Dépendance infrastructure client non maîtrisée |
+| Google Drive | Gratuit (free tier 15 Go largement suffisant), API fiable, données dans compte appartenant au client |
+
+---
+
+## 20. AuditLog métier — Sprint 2
+
+> Suite à recommandation consultant externe validée.
+
+Table `AuditLog` à ajouter au schema Prisma dès Sprint 2.
+
+**Champs** : `id`, `userId`, `entityType`, `entityId`, `action`, `metadata` (JSON), `timestamp`
+
+**Événements à tracer :**
+- Changement de statut véhicule
+- Création / modification / suppression véhicule
+- Mouvements de stock
+- Création / modification maintenance
+- Création / modification location
+
+**Implémentation** : middleware Express automatique — les controllers ne doivent **PAS** appeler AuditLog directement.
+
+---
+
+## 21. Décisions écartées — à ne pas remettre en question
+
+| Technologie / Approche | Raison du rejet |
+|------------------------|----------------|
+| Puppeteer | Trop lourd pour VPS 4 Go — remplacé par jsPDF navigateur |
+| Alertes email (Nodemailer) | Fonctionnalité premium V2 — V1 = alertes visuelles in-app uniquement |
+| BullMQ + Redis | Over-engineering pour 7 jobs/jour — node-cron suffisant en V1 |
+| Grafana + Loki | Overkill pour 3 users — Winston + UptimeRobot suffisants en V1 |
+| Backblaze B2 | Données hors territoire national algérien |
+| Backup local chez client | Dépendance infrastructure non maîtrisée |
+| Staging permanent | À la demande uniquement, financé par le chantier qui le justifie |
+
+---
+
+*Dernière mise à jour : Mars 2026 — Sprint 1 terminé (v0.1.0), revue externe validée, Sprint 2 en préparation.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*
