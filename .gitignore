@@ -40,3 +40,4 @@ coverage/
 # Zone.Identifier (WSL artifacts)
 *.Zone.Identifier
 *:Zone.Identifier
+backups/

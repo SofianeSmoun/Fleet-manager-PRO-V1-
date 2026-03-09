@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { encrypt, decrypt } from '../lib/encryption';
-import { uploadToGoogleDrive, downloadFromGoogleDrive } from '../lib/googleDrive';
+import { uploadBackup, downloadBackup } from '../lib/googleDrive';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 
@@ -30,8 +30,8 @@ export async function runBackup(): Promise<{ id: string; filename: string }> {
     // Encrypt
     const encrypted = encrypt(dumpBuffer);
 
-    // Upload to Google Drive
-    const { fileId, size } = await uploadToGoogleDrive(filename, encrypted);
+    // Save locally
+    const { fileId, size } = uploadBackup(filename, encrypted);
 
     // Update log
     await prisma.backupLog.update({
@@ -62,11 +62,11 @@ export async function runBackup(): Promise<{ id: string; filename: string }> {
   }
 }
 
-export async function restoreBackup(driveFileId: string): Promise<void> {
-  logger.info('Starting restore from Google Drive', { driveFileId });
+export function restoreBackup(backupPath: string): void {
+  logger.info('Starting restore from local backup', { backupPath });
 
-  // Download encrypted backup
-  const encrypted = await downloadFromGoogleDrive(driveFileId);
+  // Read encrypted backup
+  const encrypted = downloadBackup(backupPath);
 
   // Decrypt
   const gzipped = decrypt(encrypted);
@@ -77,5 +77,5 @@ export async function restoreBackup(driveFileId: string): Promise<void> {
     { input: gzipped, maxBuffer: 200 * 1024 * 1024 },
   );
 
-  logger.info('Restore completed successfully', { driveFileId });
+  logger.info('Restore completed successfully', { backupPath });
 }

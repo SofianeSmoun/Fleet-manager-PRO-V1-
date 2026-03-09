@@ -33,11 +33,11 @@ async function main(): Promise<void> {
   if (command === 'restore') {
     const fileId = args[1];
     if (!fileId) {
-      console.error('Usage: testBackup restore <driveFileId>');
+      console.error('Usage: testBackup restore <backupFilePath>');
       process.exit(1);
     }
-    console.log(`Restoring from Google Drive file: ${fileId}...`);
-    await restoreBackup(fileId);
+    console.log(`Restoring from local backup: ${fileId}...`);
+    restoreBackup(fileId);
     console.log('✅ Restore completed');
     return;
   }
@@ -58,7 +58,7 @@ async function main(): Promise<void> {
   console.log('Commands:');
   console.log('  encrypt-test  — Test AES-256-GCM round-trip');
   console.log('  backup        — Run a manual backup');
-  console.log('  restore <id>  — Restore from a Google Drive file ID');
+  console.log('  restore <path> — Restore from a local backup file path');
   console.log('  status        — Show last 10 backup logs');
 }
 
