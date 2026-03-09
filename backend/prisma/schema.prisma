@@ -94,6 +94,12 @@ enum InsuranceStatus {
   EXPIREE
 }
 
+enum BackupStatus {
+  SUCCESS
+  FAILED
+  IN_PROGRESS
+}
+
 // ─── ENTITÉS ──────────────────────────────────────────────────────────────────
 
 model User {
@@ -361,6 +367,18 @@ model InsurancePolicy {
   updatedAt      DateTime        @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id])
+}
+
+// Historique des backups BDD
+model BackupLog {
+  id          String       @id @default(uuid())
+  filename    String
+  sizeBytes   Int
+  status      BackupStatus @default(IN_PROGRESS)
+  driveFileId String?
+  errorMessage String?
+  startedAt   DateTime     @default(now())
+  completedAt DateTime?
 }
 
 // Historique des alertes InApp — lu/non-lu
