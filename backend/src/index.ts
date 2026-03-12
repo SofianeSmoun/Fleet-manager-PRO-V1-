@@ -7,6 +7,7 @@ import { logger } from './lib/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
 import { authRouter } from './routes/auth.routes';
+import { vehiclesRouter } from './routes/vehicles.routes';
 
 const app: Express = express();
 const PORT = process.env['PORT'] ?? 3000;
@@ -40,7 +41,7 @@ app.get('/health', (_req, res) => {
 
 // API routes
 app.use('/api/v1/auth', authRouter);
-// app.use('/api/v1/vehicles', vehiclesRouter);  — E2
+app.use('/api/v1/vehicles', vehiclesRouter);
 
 // Error handling
 app.use(notFound);
