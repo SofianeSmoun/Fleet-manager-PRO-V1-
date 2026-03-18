@@ -68,6 +68,25 @@ export function useUpdateVehicle(): UseMutationResult<Vehicle, unknown, Record<s
   });
 }
 
+export function useChangeVehicleStatus(): UseMutationResult<
+  Vehicle,
+  unknown,
+  { id: string; toStatus: string; comment: string }
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, toStatus, comment }: { id: string; toStatus: string; comment: string }) => {
+      const { data } = await api.patch<Vehicle>(`/vehicles/${id}/status`, { toStatus, comment });
+      return data;
+    },
+    onSuccess: (_data: Vehicle, variables: { id: string; toStatus: string; comment: string }) => {
+      void queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      void queryClient.invalidateQueries({ queryKey: ['vehicle', variables.id] });
+      void queryClient.invalidateQueries({ queryKey: ['vehicle-history', variables.id] });
+    },
+  });
+}
+
 export function useSoftDeleteVehicle(): UseMutationResult<{ message: string }, unknown, string> {
   const queryClient = useQueryClient();
   return useMutation({

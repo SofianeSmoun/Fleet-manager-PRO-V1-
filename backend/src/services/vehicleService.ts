@@ -1,7 +1,93 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma, Vehicle, VehicleStatus } from '@prisma/client';
+import { Role } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import { prisma } from '../lib/prisma';
 import type { CreateVehicleInput, UpdateVehicleInput, VehicleFilters } from '../schemas/vehicle.schema';
+
+// ─── Automate d'états véhicule ────────────────────────────────────────────────
+// Map exhaustive : clé = "FROM→TO", valeur = side-effect handler (ou null = simple log)
+// DEV-8 ajoutera LOUE→HORS_SERVICE ici.
+
+const ALLOWED_TRANSITIONS: Record<string, 'simple' | 'admin_only' | 'create_rental' | 'create_maintenance' | 'close_rental' | 'close_maintenance'> = {
+  'DISPONIBLE→LOUE': 'create_rental',
+  'DISPONIBLE→MAINTENANCE': 'create_maintenance',
+  'DISPONIBLE→HORS_SERVICE': 'admin_only',
+  'LOUE→DISPONIBLE': 'close_rental',
+  'LOUE→MAINTENANCE': 'simple',
+  'MAINTENANCE→DISPONIBLE': 'close_maintenance',
+  'MAINTENANCE→HORS_SERVICE': 'simple',
+  'HORS_SERVICE→DISPONIBLE': 'admin_only',
+};
+
+function makeError(message: string, statusCode: number): Error {
+  return Object.assign(new Error(message), { statusCode });
+}
+
+export async function changeVehicleStatus(
+  vehicleId: string,
+  toStatus: VehicleStatus,
+  comment: string,
+  userId: string,
+  userRole: Role,
+): Promise<Vehicle> {
+  if (!comment.trim()) {
+    throw makeError('Le commentaire est obligatoire', 422);
+  }
+
+  const vehicle = await prisma.vehicle.findFirst({ where: { id: vehicleId, deletedAt: null } });
+  if (!vehicle) {
+    throw makeError('Véhicule introuvable', 404);
+  }
+
+  const transitionKey = `${vehicle.statut}→${toStatus}`;
+  const effect = ALLOWED_TRANSITIONS[transitionKey];
+
+  if (!effect) {
+    throw makeError(`Transition invalide : ${vehicle.statut} → ${toStatus}`, 400);
+  }
+
+  if (effect === 'admin_only' && userRole !== Role.ADMIN) {
+    throw makeError('Seul un ADMIN peut effectuer cette transition', 403);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // Create StatusHistory
+    await tx.statusHistory.create({
+      data: {
+        vehicleId,
+        fromStatus: vehicle.statut,
+        toStatus,
+        reason: comment,
+        changedById: userId,
+      },
+    });
+
+    // Side effects
+    if (effect === 'close_rental') {
+      // Close active rental
+      await tx.rental.updateMany({
+        where: { vehicleId, statut: 'EN_COURS' },
+        data: { statut: 'TERMINEE', dateFinReelle: new Date() },
+      });
+    } else if (effect === 'close_maintenance') {
+      // Close active maintenance
+      await tx.maintenance.updateMany({
+        where: { vehicleId, statut: { in: ['EN_ATTENTE', 'EN_COURS'] } },
+        data: { statut: 'TERMINEE', dateSortieReelle: new Date() },
+      });
+    }
+    // NOTE: create_rental and create_maintenance side effects are NOT handled here.
+    // DEV-10 (rentalService) and DEV-4 (maintenanceService) will handle creation
+    // of Rental/Maintenance records and call changeVehicleStatus for the transition.
+    // The transition itself only logs the StatusHistory.
+
+    // Update vehicle status
+    return tx.vehicle.update({
+      where: { id: vehicleId },
+      data: { statut: toStatus },
+    });
+  });
+}
 
 export async function getVehicles(filters: VehicleFilters): Promise<{
   data: Prisma.VehicleGetPayload<{ include: { client: { select: { nom: true; couleur: true } } } }>[];

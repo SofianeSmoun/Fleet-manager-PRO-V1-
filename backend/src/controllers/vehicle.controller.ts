@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { vehicleFiltersSchema } from '../schemas/vehicle.schema';
-import type { CreateVehicleInput, UpdateVehicleInput } from '../schemas/vehicle.schema';
+import type { CreateVehicleInput, UpdateVehicleInput, ChangeStatusInput } from '../schemas/vehicle.schema';
 import * as vehicleService from '../services/vehicleService';
 
 export async function getVehicles(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -60,6 +60,28 @@ export async function getVehicleHistory(req: Request, res: Response, next: NextF
   try {
     const history = await vehicleService.getVehicleHistory(req.params['id']);
     res.json(history);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function changeVehicleStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { toStatus, comment } = req.body as ChangeStatusInput;
+    const userId = req.user?.sub as string;
+    const userRole = req.user?.role;
+    if (!userRole) {
+      res.status(401).json({ message: 'Non authentifié' });
+      return;
+    }
+    const vehicle = await vehicleService.changeVehicleStatus(
+      req.params['id'],
+      toStatus,
+      comment,
+      userId,
+      userRole,
+    );
+    res.json(vehicle);
   } catch (err) {
     next(err);
   }
