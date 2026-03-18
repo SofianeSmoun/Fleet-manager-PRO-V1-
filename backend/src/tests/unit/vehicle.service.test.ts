@@ -182,6 +182,43 @@ describe('changeVehicleStatus', () => {
       .rejects.toMatchObject({ statusCode: 404 });
   });
 
+  // ── DEV-8 : LOUE → HORS_SERVICE ──────────────────────────────────
+
+  it('LOUE → HORS_SERVICE (ADMIN) : cancels active rental + StatusHistory', async () => {
+    mockFindFirst.mockResolvedValue(makeVehicle(VehicleStatus.LOUE));
+    const result = await changeVehicleStatus('v-1', VehicleStatus.HORS_SERVICE, 'Accident grave', 'u-1', Role.ADMIN);
+    expect(result.statut).toBe(VehicleStatus.HORS_SERVICE);
+    expect(mockTx.rental.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { vehicleId: 'v-1', statut: 'EN_COURS' },
+        data: expect.objectContaining({ statut: 'ANNULEE' }),
+      }),
+    );
+    expect(mockTx.statusHistory.create).toHaveBeenCalledOnce();
+  });
+
+  it('LOUE → HORS_SERVICE without active rental : succeeds gracefully', async () => {
+    mockFindFirst.mockResolvedValue(makeVehicle(VehicleStatus.LOUE));
+    mockTx.rental.updateMany.mockResolvedValue({ count: 0 });
+    const result = await changeVehicleStatus('v-1', VehicleStatus.HORS_SERVICE, 'Panne majeure', 'u-1', Role.ADMIN);
+    expect(result.statut).toBe(VehicleStatus.HORS_SERVICE);
+    expect(mockTx.statusHistory.create).toHaveBeenCalledOnce();
+  });
+
+  it('LOUE → HORS_SERVICE by GESTIONNAIRE → 403', async () => {
+    mockFindFirst.mockResolvedValue(makeVehicle(VehicleStatus.LOUE));
+    await expect(changeVehicleStatus('v-1', VehicleStatus.HORS_SERVICE, 'Accident', 'u-1', Role.GESTIONNAIRE))
+      .rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('LOUE → HORS_SERVICE runs inside $transaction', async () => {
+    mockFindFirst.mockResolvedValue(makeVehicle(VehicleStatus.LOUE));
+    await changeVehicleStatus('v-1', VehicleStatus.HORS_SERVICE, 'Accident', 'u-1', Role.ADMIN);
+    // Both rental cancel and vehicle update happen inside the same tx
+    expect(mockTx.rental.updateMany).toHaveBeenCalledOnce();
+    expect(mockTx.vehicle.update).toHaveBeenCalledOnce();
+  });
+
   it('every valid transition creates a StatusHistory entry', async () => {
     mockFindFirst.mockResolvedValue(makeVehicle(VehicleStatus.DISPONIBLE));
     await changeVehicleStatus('v-1', VehicleStatus.LOUE, 'Check SH', 'u-1', Role.GESTIONNAIRE);
