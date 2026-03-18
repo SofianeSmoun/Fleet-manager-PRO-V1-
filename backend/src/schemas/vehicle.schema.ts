@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { VehicleStatus, Fuel } from '@prisma/client';
 
+export const changeStatusSchema = z.object({
+  toStatus: z.nativeEnum(VehicleStatus),
+  comment: z.string().min(1, 'Le commentaire est obligatoire'),
+});
+export type ChangeStatusInput = z.infer<typeof changeStatusSchema>;
+
 // Regex immatriculation algérienne : WW·NNNN·ALG (séparateur U+00B7)
 const immatriculationRegex = /^\d{2}\u00B7\d{4}\u00B7ALG$/;
 

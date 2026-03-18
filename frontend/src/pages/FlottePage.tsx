@@ -126,7 +126,7 @@ export default function FlottePage(): JSX.Element {
           <p className="text-2xl font-bold text-[#0E7C59]">{kpis.DISPONIBLE}</p>
         </div>
         <div className="bg-white rounded-lg p-4 border border-[#E2E6ED]">
-          <p className="text-sm text-[#64748B]">Lou\u00E9s</p>
+          <p className="text-sm text-[#64748B]">Loués</p>
           <p className="text-2xl font-bold text-[#1D6FA4]">{kpis.LOUE}</p>
         </div>
         <div className="bg-white rounded-lg p-4 border border-[#E2E6ED]">

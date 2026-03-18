@@ -1,10 +1,43 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useVehicle, useVehicleHistory } from '@/hooks/useVehicles';
+import { useVehicle, useVehicleHistory, useChangeVehicleStatus } from '@/hooks/useVehicles';
 import StatusBadge from '@/components/StatusBadge';
+import { getAccessToken } from '@/lib/auth-token';
 import type { VehicleDetail } from '@/types/vehicle';
+import type { VehicleStatus } from '@/types';
 
 type Tab = 'infos' | 'historique' | 'locations' | 'interventions' | 'assurance';
+
+// Allowed transitions map (mirrors backend ALLOWED_TRANSITIONS)
+const TRANSITIONS: Record<string, { value: VehicleStatus; label: string }[]> = {
+  DISPONIBLE: [
+    { value: 'LOUE', label: 'Loué' },
+    { value: 'MAINTENANCE', label: 'Maintenance' },
+    { value: 'HORS_SERVICE', label: 'Hors service' },
+  ],
+  LOUE: [
+    { value: 'DISPONIBLE', label: 'Disponible' },
+    { value: 'MAINTENANCE', label: 'Maintenance' },
+  ],
+  MAINTENANCE: [
+    { value: 'DISPONIBLE', label: 'Disponible' },
+    { value: 'HORS_SERVICE', label: 'Hors service' },
+  ],
+  HORS_SERVICE: [
+    { value: 'DISPONIBLE', label: 'Disponible' },
+  ],
+};
+
+function getUserRole(): string | null {
+  const token = getAccessToken();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as { role?: string };
+    return payload.role ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR');
@@ -179,6 +212,12 @@ export default function VehicleDetailPage(): JSX.Element {
   const navigate = useNavigate();
   const { data: vehicle, isLoading } = useVehicle(id ?? '');
   const [activeTab, setActiveTab] = useState<Tab>('infos');
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<VehicleStatus | ''>('');
+  const [statusComment, setStatusComment] = useState('');
+  const changeStatusMutation = useChangeVehicleStatus();
+  const role = getUserRole();
+  const canWrite = role === 'ADMIN' || role === 'GESTIONNAIRE';
 
   if (isLoading) {
     return <div className="min-h-screen bg-[#F4F6F9] flex items-center justify-center text-[#64748B]">Chargement...</div>;
@@ -224,6 +263,19 @@ export default function VehicleDetailPage(): JSX.Element {
           <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: vehicle.client.couleur }} />
           {vehicle.client.nom}
         </span>
+        {canWrite && (TRANSITIONS[vehicle.statut]?.length ?? 0) > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedStatus('');
+              setStatusComment('');
+              setStatusModalOpen(true);
+            }}
+            className="ml-auto px-4 py-2 bg-[#1D6FA4] text-white text-sm font-medium rounded-md hover:bg-[#185d8a] transition-colors"
+          >
+            Changer statut
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -253,6 +305,64 @@ export default function VehicleDetailPage(): JSX.Element {
           {activeTab === 'assurance' && <InsuranceTab vehicle={vehicle} />}
         </div>
       </div>
+
+      {/* Status change modal */}
+      {statusModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold text-[#1A2332] mb-4">Changer le statut</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-[#1A2332] mb-1">Nouveau statut</label>
+              <select
+                className="w-full px-3 py-2 border border-[#E2E6ED] rounded-md text-sm bg-white"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value as VehicleStatus)}
+              >
+                <option value="">Sélectionner...</option>
+                {(TRANSITIONS[vehicle.statut] ?? []).map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-[#1A2332] mb-1">Commentaire</label>
+              <textarea
+                className="w-full px-3 py-2 border border-[#E2E6ED] rounded-md text-sm resize-none"
+                rows={3}
+                placeholder="Motif du changement (obligatoire)"
+                value={statusComment}
+                onChange={(e) => setStatusComment(e.target.value)}
+              />
+              {statusComment.trim() === '' && (
+                <p className="text-xs text-[#C0392B] mt-1">Le commentaire est obligatoire</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setStatusModalOpen(false)}
+                className="px-4 py-2 text-sm text-[#64748B] hover:text-[#1A2332]"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={!selectedStatus || !statusComment.trim() || changeStatusMutation.isPending}
+                onClick={() => {
+                  if (!selectedStatus || !statusComment.trim()) return;
+                  changeStatusMutation.mutate(
+                    { id: vehicle.id, toStatus: selectedStatus, comment: statusComment },
+                    { onSuccess: () => setStatusModalOpen(false) },
+                  );
+                }}
+                className="px-4 py-2 bg-[#1D6FA4] text-white text-sm font-medium rounded-md hover:bg-[#185d8a] disabled:opacity-50"
+              >
+                {changeStatusMutation.isPending ? 'En cours...' : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

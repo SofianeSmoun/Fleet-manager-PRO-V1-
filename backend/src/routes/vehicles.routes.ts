@@ -3,7 +3,7 @@ import { Role } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { createVehicleSchema, updateVehicleSchema } from '../schemas/vehicle.schema';
+import { createVehicleSchema, updateVehicleSchema, changeStatusSchema } from '../schemas/vehicle.schema';
 import {
   getVehicles,
   getVehicleById,
@@ -12,6 +12,7 @@ import {
   softDeleteVehicle,
   getVehicleHistory,
   exportVehiclesToExcel,
+  changeVehicleStatus,
 } from '../controllers/vehicle.controller';
 
 const router: IRouter = Router();
@@ -37,6 +38,15 @@ router.get('/:id', (req, res, next) => {
 router.get('/:id/history', (req, res, next) => {
   void getVehicleHistory(req, res, next);
 });
+
+router.patch(
+  '/:id/status',
+  requireRole(Role.ADMIN, Role.GESTIONNAIRE),
+  validate(changeStatusSchema),
+  (req, res, next) => {
+    void changeVehicleStatus(req, res, next);
+  },
+);
 
 router.post(
   '/',
