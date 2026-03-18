@@ -6,14 +6,15 @@ import type { CreateVehicleInput, UpdateVehicleInput, VehicleFilters } from '../
 
 // ─── Automate d'états véhicule ────────────────────────────────────────────────
 // Map exhaustive : clé = "FROM→TO", valeur = side-effect handler (ou null = simple log)
-// DEV-8 ajoutera LOUE→HORS_SERVICE ici.
+// DEV-8 : LOUE→HORS_SERVICE ajouté (cancel_rental).
 
-const ALLOWED_TRANSITIONS: Record<string, 'simple' | 'admin_only' | 'create_rental' | 'create_maintenance' | 'close_rental' | 'close_maintenance'> = {
+const ALLOWED_TRANSITIONS: Record<string, 'simple' | 'admin_only' | 'create_rental' | 'create_maintenance' | 'close_rental' | 'close_maintenance' | 'cancel_rental'> = {
   'DISPONIBLE→LOUE': 'create_rental',
   'DISPONIBLE→MAINTENANCE': 'create_maintenance',
   'DISPONIBLE→HORS_SERVICE': 'admin_only',
   'LOUE→DISPONIBLE': 'close_rental',
   'LOUE→MAINTENANCE': 'simple',
+  'LOUE→HORS_SERVICE': 'cancel_rental',
   'MAINTENANCE→DISPONIBLE': 'close_maintenance',
   'MAINTENANCE→HORS_SERVICE': 'simple',
   'HORS_SERVICE→DISPONIBLE': 'admin_only',
@@ -46,7 +47,7 @@ export async function changeVehicleStatus(
     throw makeError(`Transition invalide : ${vehicle.statut} → ${toStatus}`, 400);
   }
 
-  if (effect === 'admin_only' && userRole !== Role.ADMIN) {
+  if ((effect === 'admin_only' || effect === 'cancel_rental') && userRole !== Role.ADMIN) {
     throw makeError('Seul un ADMIN peut effectuer cette transition', 403);
   }
 
@@ -68,6 +69,12 @@ export async function changeVehicleStatus(
       await tx.rental.updateMany({
         where: { vehicleId, statut: 'EN_COURS' },
         data: { statut: 'TERMINEE', dateFinReelle: new Date() },
+      });
+    } else if (effect === 'cancel_rental') {
+      // Cancel active rental (accident/panne grave)
+      await tx.rental.updateMany({
+        where: { vehicleId, statut: 'EN_COURS' },
+        data: { statut: 'ANNULEE', dateFinReelle: new Date() },
       });
     } else if (effect === 'close_maintenance') {
       // Close active maintenance

@@ -18,6 +18,7 @@ const TRANSITIONS: Record<string, { value: VehicleStatus; label: string }[]> = {
   LOUE: [
     { value: 'DISPONIBLE', label: 'Disponible' },
     { value: 'MAINTENANCE', label: 'Maintenance' },
+    { value: 'HORS_SERVICE', label: 'Hors service' },
   ],
   MAINTENANCE: [
     { value: 'DISPONIBLE', label: 'Disponible' },
