@@ -4,6 +4,8 @@ import { login, refresh, logout, forgotPassword, resetPassword } from '../contro
 import { validate } from '../middleware/validate';
 import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../lib/schemas';
 
+const isProduction = process.env['NODE_ENV'] === 'production';
+
 const authRateLimit = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 10,
@@ -11,6 +13,7 @@ const authRateLimit = rateLimit({
   legacyHeaders: false,
   message: { message: 'Trop de tentatives de connexion — réessayez dans 1 minute' },
   skipSuccessfulRequests: false,
+  skip: () => !isProduction,
 });
 
 const router: IRouter = Router();

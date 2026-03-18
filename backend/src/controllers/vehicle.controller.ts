@@ -58,7 +58,22 @@ export async function softDeleteVehicle(req: Request, res: Response, next: NextF
 
 export async function getVehicleHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const history = await vehicleService.getVehicleHistory(req.params['id']);
+    const vehicleId = req.params['id'];
+    if (req.query['format'] === 'excel') {
+      const vehicle = await vehicleService.getVehicleById(vehicleId);
+      if (!vehicle) {
+        res.status(404).json({ message: 'Véhicule introuvable' });
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      const safeImmat = vehicle.immatriculation.replace(/\u00B7/g, '-');
+      const buffer = await vehicleService.exportVehicleHistoryToExcel(vehicleId, vehicle.immatriculation);
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=historique-${safeImmat}-${today}.xlsx`);
+      res.send(buffer);
+      return;
+    }
+    const history = await vehicleService.getVehicleHistory(vehicleId);
     res.json(history);
   } catch (err) {
     next(err);
