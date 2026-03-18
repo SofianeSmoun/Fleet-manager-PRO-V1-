@@ -273,6 +273,53 @@ export async function getVehicleHistory(id: string): Promise<
   });
 }
 
+export async function exportVehicleHistoryToExcel(
+  id: string,
+  immatriculation: string,
+): Promise<Buffer> {
+  const history = await prisma.statusHistory.findMany({
+    where: { vehicleId: id },
+    include: { changedBy: { select: { firstName: true, lastName: true } } },
+    orderBy: { changedAt: 'desc' },
+  });
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Historique statuts');
+
+  sheet.columns = [
+    { header: 'Date', key: 'date', width: 20 },
+    { header: 'De', key: 'from', width: 18 },
+    { header: 'Vers', key: 'to', width: 18 },
+    { header: 'Commentaire', key: 'reason', width: 40 },
+    { header: 'Par', key: 'by', width: 22 },
+  ];
+
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D1B2A' } };
+
+  for (let i = 0; i < history.length; i++) {
+    const h = history[i];
+    if (!h) continue;
+    const row = sheet.addRow({
+      date: new Date(h.changedAt).toLocaleString('fr-FR'),
+      from: h.fromStatus || '—',
+      to: h.toStatus,
+      reason: h.reason,
+      by: `${h.changedBy.firstName} ${h.changedBy.lastName}`,
+    });
+    if (i % 2 === 1) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F6F9' } };
+    }
+  }
+
+  // Auto-set filename hint via immatriculation
+  void immatriculation;
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
 export async function exportVehiclesToExcel(filters: VehicleFilters): Promise<Buffer> {
   // Récupérer tous les véhicules (sans pagination pour l'export)
   const where: Prisma.VehicleWhereInput = { deletedAt: null };

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useVehicle, useVehicleHistory, useChangeVehicleStatus } from '@/hooks/useVehicles';
 import StatusBadge from '@/components/StatusBadge';
+import EmptyState from '@/components/EmptyState';
 import { getAccessToken } from '@/lib/auth-token';
 import type { VehicleDetail } from '@/types/vehicle';
 import type { VehicleStatus } from '@/types';
@@ -79,34 +80,104 @@ function InfoGrid({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
   );
 }
 
-function HistoryTab({ vehicleId }: { vehicleId: string }): JSX.Element {
-  const { data: history, isLoading } = useVehicleHistory(vehicleId);
+const ROW_BG: Record<string, string> = {
+  DISPONIBLE: '#E8F6F0',
+  HORS_SERVICE: '#FDECEA',
+  MAINTENANCE: '#FEF3C7',
+  LOUE: '#EBF5FB',
+};
 
-  if (isLoading) return <p className="text-[#64748B] p-4">Chargement...</p>;
-  if (!history?.length) return <p className="text-[#64748B] p-4">Aucun historique.</p>;
+function HistoryTab({ vehicleId }: { vehicleId: string }): JSX.Element {
+  const { data: history, isLoading, isError, refetch } = useVehicleHistory(vehicleId);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = (): void => {
+    setExporting(true);
+    fetch(`/api/v1/vehicles/${vehicleId}/history?format=excel`, {
+      headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Export failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const disposition = res.headers.get('content-disposition');
+        const match = disposition?.match(/filename=(.+)/);
+        a.download = match?.[1] ?? 'historique.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => {
+        // silent — toast could be added later
+      })
+      .finally(() => setExporting(false));
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><div className="w-6 h-6 border-2 border-[#1D6FA4] border-t-transparent rounded-full animate-spin" /></div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center p-8">
+        <p className="text-sm text-[#C0392B] mb-2">Erreur lors du chargement de l&apos;historique.</p>
+        <button type="button" onClick={() => { void refetch(); }} className="text-sm text-[#1D6FA4] hover:underline">Réessayer</button>
+      </div>
+    );
+  }
+
+  if (!history?.length) {
+    return <EmptyState title="Aucun historique" description="Aucun changement de statut enregistré pour ce véhicule." />;
+  }
 
   return (
-    <div className="space-y-4 p-4">
-      {history.map((h) => (
-        <div key={h.id} className="flex gap-4 items-start">
-          <div className="w-2 h-2 mt-2 rounded-full bg-[#1D6FA4] shrink-0" />
-          <div>
-            <p className="text-sm text-[#1A2332]">
-              {h.fromStatus ? (
-                <>
-                  <StatusBadge status={h.fromStatus} /> <span className="text-[#64748B] mx-1">\u2192</span>{' '}
-                  <StatusBadge status={h.toStatus} />
-                </>
-              ) : (
+    <div>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#E2E6ED]">
+        <h3 className="text-sm font-semibold text-[#1A2332]">Historique des statuts</h3>
+        <button
+          type="button"
+          disabled={exporting || history.length === 0}
+          onClick={handleExport}
+          className="px-3 py-1.5 text-xs font-medium text-[#1D6FA4] border border-[#1D6FA4] rounded-md hover:bg-[#EBF5FB] disabled:opacity-50 transition-colors"
+        >
+          {exporting ? 'Export...' : 'Exporter Excel'}
+        </button>
+      </div>
+      <table className="w-full">
+        <thead>
+          <tr className="bg-[#F0F2F5] text-[11px] uppercase tracking-wider text-[#64748B]">
+            <th className="px-4 py-3 text-left">Date/heure</th>
+            <th className="px-4 py-3 text-left">De</th>
+            <th className="px-4 py-3 text-left">Vers</th>
+            <th className="px-4 py-3 text-left">Commentaire</th>
+            <th className="px-4 py-3 text-left">Par</th>
+          </tr>
+        </thead>
+        <tbody>
+          {history.map((h) => (
+            <tr key={h.id} className="border-t border-[#E2E6ED]" style={{ backgroundColor: ROW_BG[h.toStatus] ?? 'white' }}>
+              <td className="px-4 py-3 text-sm text-[#1A2332] whitespace-nowrap">
+                {new Date(h.changedAt).toLocaleString('fr-FR')}
+              </td>
+              <td className="px-4 py-3">
+                {h.fromStatus ? <StatusBadge status={h.fromStatus} /> : <span className="text-xs text-[#64748B]">—</span>}
+              </td>
+              <td className="px-4 py-3">
                 <StatusBadge status={h.toStatus} />
-              )}
-            </p>
-            <p className="text-xs text-[#64748B] mt-1">
-              {h.reason} \u2014 {h.changedBy.firstName} {h.changedBy.lastName} \u00B7 {formatDate(h.changedAt)}
-            </p>
-          </div>
-        </div>
-      ))}
+              </td>
+              <td className="px-4 py-3 text-sm text-[#1A2332] max-w-[300px]" title={h.reason}>
+                {h.reason.length > 80 ? `${h.reason.slice(0, 80)}…` : h.reason}
+              </td>
+              <td className="px-4 py-3 text-sm text-[#64748B] whitespace-nowrap">
+                {h.changedBy.firstName} {h.changedBy.lastName}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
