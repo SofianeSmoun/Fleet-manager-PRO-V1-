@@ -6,17 +6,17 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import type { Vehicle } from '@/types/vehicle';
 
-const immatriculationRegex = /^\d{2}\u00B7\d{4}\u00B7ALG$/;
+const immatriculationRegex = /^\d{2}·\d{4}·ALG$/;
 
 const vehicleFormSchema = z.object({
   immatriculation: z
     .string()
-    .regex(immatriculationRegex, 'Format attendu : WW\u00B7NNNN\u00B7ALG'),
+    .regex(immatriculationRegex, 'Format attendu : WW·NNNN·ALG'),
   vin: z.string().optional().or(z.literal('')),
   marque: z.string().min(1, 'Marque requise'),
-  modele: z.string().min(1, 'Mod\u00E8le requis'),
+  modele: z.string().min(1, 'Modèle requis'),
   annee: z.coerce.number().int().min(2000).max(2030),
-  km: z.coerce.number().int().min(0, 'Km doit \u00EAtre positif'),
+  km: z.coerce.number().int().min(0, 'Km doit être positif'),
   carburant: z.enum(['DIESEL', 'ESSENCE', 'GPL']),
   couleur: z.string().optional().or(z.literal('')),
   clientId: z.string().uuid('Client requis'),
@@ -114,7 +114,7 @@ export default function VehicleFormModal({
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="px-6 py-4 border-b border-[#E2E6ED]">
           <h2 className="text-lg font-semibold text-[#1A2332]">
-            {isEdit ? 'Modifier le v\u00E9hicule' : 'Nouveau v\u00E9hicule'}
+            {isEdit ? 'Modifier le véhicule' : 'Nouveau véhicule'}
           </h2>
         </div>
 
@@ -127,7 +127,7 @@ export default function VehicleFormModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Immatriculation *</label>
-              <input {...register('immatriculation')} className={fieldClass} placeholder="16\u00B72341\u00B7ALG" />
+              <input {...register('immatriculation')} className={fieldClass} placeholder="16·2341·ALG" />
               {errors.immatriculation && <p className={errorClass}>{errors.immatriculation.message}</p>}
             </div>
             <div>
@@ -144,7 +144,7 @@ export default function VehicleFormModal({
               {errors.marque && <p className={errorClass}>{errors.marque.message}</p>}
             </div>
             <div>
-              <label className={labelClass}>Mod\u00E8le *</label>
+              <label className={labelClass}>Modèle *</label>
               <input {...register('modele')} className={fieldClass} />
               {errors.modele && <p className={errorClass}>{errors.modele.message}</p>}
             </div>
@@ -152,7 +152,7 @@ export default function VehicleFormModal({
 
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className={labelClass}>Ann\u00E9e *</label>
+              <label className={labelClass}>Année *</label>
               <input type="number" {...register('annee')} className={fieldClass} />
               {errors.annee && <p className={errorClass}>{errors.annee.message}</p>}
             </div>
@@ -179,7 +179,7 @@ export default function VehicleFormModal({
             <div>
               <label className={labelClass}>Client *</label>
               <select {...register('clientId')} className={fieldClass}>
-                <option value="">S\u00E9lectionner un client</option>
+                <option value="">Sélectionner un client</option>
                 {clients?.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nom}

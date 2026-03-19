@@ -4,7 +4,11 @@
       "Bash(wsl bash -c \"cd /home/sofiane/Fleet-manager-PRO-V1- && git checkout feature/e1-s6-auth-jwt && git log --oneline -3 && git status --short\")",
       "Bash(wsl bash -c \"find /home/sofiane/Fleet-manager-PRO-V1-/backend/src -type f | sort\")",
       "Bash(wsl bash -c \"export PATH=''/home/sofiane/.nvm/versions/node/v20.20.1/bin:$PATH'' && cd /home/sofiane/Fleet-manager-PRO-V1-/backend && pnpm add -D vitest @vitest/coverage-v8 supertest @types/supertest 2>&1 | tail -8\")",
-      "Bash(wsl bash -c \"mkdir -p /home/sofiane/Fleet-manager-PRO-V1-/backend/src/tests && echo done\")"
+      "Bash(wsl bash -c \"mkdir -p /home/sofiane/Fleet-manager-PRO-V1-/backend/src/tests && echo done\")",
+      "Bash(find /home/sofiane/Fleet-manager-PRO-V1-/backend/src/routes -type f -name *.ts)",
+      "Bash(find /home/sofiane/Fleet-manager-PRO-V1-/backend/src/services -type f -name *.ts)",
+      "Bash(find /home/sofiane/Fleet-manager-PRO-V1-/backend/src/controllers -type f -name *.ts)",
+      "Bash(find /home/sofiane/Fleet-manager-PRO-V1-/backend/src -name schemas* -o -name *schema*)"
     ]
   }
 }

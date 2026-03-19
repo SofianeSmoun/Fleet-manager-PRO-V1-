@@ -9,6 +9,8 @@ import { notFound } from './middleware/notFound';
 import swaggerUi from 'swagger-ui-express';
 import { authRouter } from './routes/auth.routes';
 import { vehiclesRouter } from './routes/vehicles.routes';
+import { rentalsRouter } from './routes/rentals.routes';
+import { clientsRouter } from './routes/clients.routes';
 import { swaggerSpec } from './lib/swagger';
 
 const app: Express = express();
@@ -52,6 +54,8 @@ if (process.env['NODE_ENV'] !== 'production') {
 // API routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/vehicles', vehiclesRouter);
+app.use('/api/v1/rentals', rentalsRouter);
+app.use('/api/v1/clients', clientsRouter);
 
 // Error handling
 app.use(notFound);

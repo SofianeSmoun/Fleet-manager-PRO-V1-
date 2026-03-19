@@ -128,29 +128,53 @@ pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin_fichier
 │   ├── prisma/
 │   │   ├── schema.prisma          ← source de vérité absolue de la DB
 │   │   ├── migrations/            ← historique SQL (commité dans git)
-│   │   └── seed.ts                ← 4 users · 4 clients · 120 véhicules · 6 garages · 10 pièces · 120 polices
+│   │   ├── seed.ts                ← 4 users · 4 clients · 120 véhicules · 6 garages · 10 pièces · 120 polices
+│   │   │                            ⚠️ Guard NODE_ENV=production → process.exit(1)
+│   │   └── create-admin.ts        ← script idempotent création admin (ADMIN_EMAIL/ADMIN_PASSWORD)
 │   └── src/
 │       ├── index.ts               ← Express app + montage routes (export default app pour tests)
+│       │                            Swagger UI monté à /api/docs (dev only)
 │       ├── lib/
 │       │   ├── prisma.ts          ← singleton PrismaClient
 │       │   ├── logger.ts          ← Winston + DailyRotateFile (JSON structuré)
-│       │   └── schemas.ts         ← schemas Zod partagés (login, forgotPassword, resetPassword)
+│       │   ├── schemas.ts         ← schemas Zod partagés (login, forgotPassword, resetPassword)
+│       │   └── swagger.ts         ← swagger-jsdoc config (OpenAPI 3.0)
+│       ├── schemas/
+│       │   └── rental.schema.ts   ← Zod schemas locations (create, close, update, filters)
 │       ├── middleware/
 │       │   ├── auth.ts            ← authenticate (JWT verify + DB lookup) + requireRole
 │       │   ├── validate.ts        ← factory Zod middleware → 422 si invalide
 │       │   ├── errorHandler.ts    ← ZodError→422, {statusCode}→code, sinon 500
 │       │   └── notFound.ts        ← 404 catch-all
-│       ├── routes/auth.routes.ts  ← rate limit 10/min + login/refresh/logout/forgot/reset
-│       ├── controllers/           ← handlers HTTP, délèguent aux services
-│       ├── services/auth.service.ts ← loginService, refreshService, forgotPasswordService, resetPasswordService
-│       └── tests/auth.test.ts     ← 11 tests Supertest (tous passent)
+│       ├── routes/
+│       │   ├── auth.routes.ts     ← rate limit 10/min + login/refresh/logout/forgot/reset
+│       │   ├── vehicles.routes.ts ← CRUD + status + km + export Excel + history
+│       │   └── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle)
+│       ├── controllers/
+│       │   ├── vehicle.controller.ts ← handlers véhicules + export Excel
+│       │   └── rental.controller.ts  ← handlers locations
+│       ├── services/
+│       │   ├── auth.service.ts    ← login, refresh, forgot, reset password
+│       │   ├── vehicleService.ts  ← CRUD + automate d'états (ALLOWED_TRANSITIONS) + Excel export
+│       │   └── rentalService.ts   ← CRUD locations + EN_RETARD dynamique + lifecycle véhicule
+│       └── tests/auth.test.ts     ← 33 tests Supertest (auth + vehicles + rentals)
 └── frontend/
     └── src/
         ├── main.tsx               ← QueryClient (staleTime 5min) + BrowserRouter
-        ├── App.tsx                ← routes : /login → LoginPage, /dashboard (E2)
+        ├── App.tsx                ← routes : /login, /flotte, /flotte/:id, /locations
         ├── lib/axios.ts           ← instance Axios + intercepteur auto-refresh JWT
-        ├── types/index.ts         ← enums TypeScript miroir du schema Prisma
-        └── pages/LoginPage.tsx    ← formulaire + 4 boutons quick-login démo
+        ├── types/
+        │   ├── index.ts           ← enums TypeScript miroir du schema Prisma
+        │   └── rental.ts          ← Rental, RentalsResponse, RentalsFilters
+        ├── hooks/
+        │   └── useRentals.ts      ← React Query hooks (useRentals, useCreateRental, useCloseRental...)
+        ├── components/
+        │   └── VehicleFormModal.tsx ← modal création/édition véhicule
+        └── pages/
+            ├── LoginPage.tsx      ← formulaire + 4 boutons quick-login démo
+            ├── FlottePage.tsx     ← liste véhicules + filtres + export Excel
+            ├── VehicleDetailPage.tsx ← fiche véhicule (infos, statuts, locations, historique)
+            └── LocationsPage.tsx  ← liste locations + KPIs + filtres + create/close modals
 ```
 
 ### Flux d'authentification
@@ -168,8 +192,15 @@ Le `access_token` est stocké **en mémoire** côté frontend (`getAccessToken()
 ### Middleware chain Express
 
 ```
-helmet → cors → rateLimit → cookieParser → json → routes → errorHandler → notFound
+helmet → cors → rateLimit → cookieParser → json → swagger (dev only) → routes → errorHandler → notFound
 ```
+
+### Swagger (dev only)
+
+- URL : `http://localhost:3000/api/docs` (UI) / `/api/docs.json` (spec)
+- Annotations : JSDoc `@swagger` dans chaque fichier routes
+- Monté **avant** notFound handler (sinon 404)
+- Import **statique** de `swagger-ui-express` (ESLint interdit `require()` et dynamic import cause race condition)
 
 ### Base de données — connexion
 
@@ -179,7 +210,14 @@ helmet → cors → rateLimit → cookieParser → json → routes → errorHand
 
 ### Points de vigilance
 
-- **`exactOptionalPropertyTypes: true`** dans tsconfig — les headers Supertest comme `res.headers['set-cookie']` doivent être typés via `unknown` puis narrowés, jamais castés directement en `string[]`.
+- **`exactOptionalPropertyTypes: true`** dans tsconfig — impact majeur sur tout le code :
+  - Headers Supertest : `res.headers['set-cookie']` doit être typé via `unknown` puis narrowé, jamais casté en `string[]`.
+  - **Prisma updates** : ne jamais passer `field: value | undefined` directement. Construire un payload explicite :
+    ```typescript
+    const updateData: Prisma.XUpdateInput = {};
+    if (data.field !== undefined) updateData.field = data.field;
+    ```
+  - **Interfaces frontend** : les props optionnelles doivent avoir `| undefined` explicite : `value?: string | undefined`.
 - **`StringValue` de `ms`** requis pour `jwt.sign({ expiresIn })` — cast obligatoire depuis `string`.
 - Le schema Prisma est la **source de vérité** — toujours migrer avant de coder la logique métier.
 - Les erreurs métier utilisent `Object.assign(new Error('msg'), { statusCode: 4xx })` — capturé par `errorHandler`.
@@ -1234,5 +1272,5 @@ Table `AuditLog` à ajouter au schema Prisma dès Sprint 2.
 
 ---
 
-*Dernière mise à jour : Mars 2026 — Sprint 1 terminé (v0.1.0), revue externe validée, Sprint 2 en préparation.*
+*Dernière mise à jour : Mars 2026 — Sprint 2 en cours. Implémentés : CRUD véhicules + automate d'états, module Locations LLD, export Excel, Swagger, seed guard, 33 tests.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*

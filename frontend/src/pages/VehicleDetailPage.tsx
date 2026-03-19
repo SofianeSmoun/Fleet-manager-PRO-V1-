@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useVehicle, useVehicleHistory, useChangeVehicleStatus } from '@/hooks/useVehicles';
+import { useRentals } from '@/hooks/useRentals';
 import StatusBadge from '@/components/StatusBadge';
 import EmptyState from '@/components/EmptyState';
 import { getAccessToken } from '@/lib/auth-token';
@@ -54,14 +55,14 @@ function InfoGrid({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
     ['Immatriculation', vehicle.immatriculation],
     ['VIN', vehicle.vin],
     ['Marque', vehicle.marque],
-    ['Mod\u00E8le', vehicle.modele],
-    ['Ann\u00E9e', String(vehicle.annee)],
-    ['Kilom\u00E9trage', `${formatKm(vehicle.km)} km`],
+    ['Modèle', vehicle.modele],
+    ['Année', String(vehicle.annee)],
+    ['Kilométrage', `${formatKm(vehicle.km)} km`],
     ['Carburant', vehicle.carburant],
     ['Couleur', vehicle.couleur],
     ['Client', vehicle.client.nom],
     ['Notes', vehicle.notes],
-    ['Cr\u00E9\u00E9 le', formatDate(vehicle.createdAt)],
+    ['Créé le', formatDate(vehicle.createdAt)],
   ];
 
   return (
@@ -182,29 +183,41 @@ function HistoryTab({ vehicleId }: { vehicleId: string }): JSX.Element {
   );
 }
 
-function RentalsTab({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
-  if (!vehicle.rentals.length) return <p className="text-[#64748B] p-4">Aucune location.</p>;
+function RentalsTab({ vehicleId }: { vehicleId: string }): JSX.Element {
+  const { data: result, isLoading } = useRentals({ vehicleId, limit: 50, sortBy: 'dateDebut', order: 'desc' });
+  const rentals = result?.data ?? [];
+
+  if (isLoading) {
+    return <div className="flex justify-center p-8"><div className="w-6 h-6 border-2 border-[#1D6FA4] border-t-transparent rounded-full animate-spin" /></div>;
+  }
+
+  if (!rentals.length) {
+    return <EmptyState title="Aucune location" description="Aucune location enregistrée pour ce véhicule." />;
+  }
 
   return (
     <table className="w-full">
       <thead>
         <tr className="bg-[#F0F2F5] text-[11px] uppercase tracking-wider text-[#64748B]">
-          <th className="px-4 py-3 text-left">D\u00E9but</th>
-          <th className="px-4 py-3 text-left">Fin pr\u00E9vue</th>
-          <th className="px-4 py-3 text-left">Fin r\u00E9elle</th>
+          <th className="px-4 py-3 text-left">Début</th>
+          <th className="px-4 py-3 text-left">Fin prévue</th>
+          <th className="px-4 py-3 text-left">Fin réelle</th>
           <th className="px-4 py-3 text-left">Statut</th>
-          <th className="px-4 py-3 text-right">Montant</th>
+          <th className="px-4 py-3 text-left">Client</th>
         </tr>
       </thead>
       <tbody>
-        {vehicle.rentals.map((r) => (
+        {rentals.map((r) => (
           <tr key={r.id} className="border-t border-[#E2E6ED]">
             <td className="px-4 py-3 text-sm">{formatDate(r.dateDebut)}</td>
             <td className="px-4 py-3 text-sm">{formatDate(r.dateFinPrevue)}</td>
-            <td className="px-4 py-3 text-sm">{r.dateFinReelle ? formatDate(r.dateFinReelle) : '\u2014'}</td>
+            <td className="px-4 py-3 text-sm">{r.dateFinReelle ? formatDate(r.dateFinReelle) : '—'}</td>
             <td className="px-4 py-3"><StatusBadge status={r.statut} /></td>
-            <td className="px-4 py-3 text-sm text-right">
-              {r.montantMensuel ? `${r.montantMensuel.toLocaleString('fr-FR')} ${r.devise}/mois` : '\u2014'}
+            <td className="px-4 py-3 text-sm">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: r.client.couleur }} />
+                {r.client.nom}
+              </span>
             </td>
           </tr>
         ))}
@@ -222,10 +235,10 @@ function MaintenancesTab({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
         <tr className="bg-[#F0F2F5] text-[11px] uppercase tracking-wider text-[#64748B]">
           <th className="px-4 py-3 text-left">Type</th>
           <th className="px-4 py-3 text-left">Nature</th>
-          <th className="px-4 py-3 text-left">Entr\u00E9e</th>
+          <th className="px-4 py-3 text-left">Entrée</th>
           <th className="px-4 py-3 text-left">Sortie</th>
           <th className="px-4 py-3 text-left">Statut</th>
-          <th className="px-4 py-3 text-right">Co\u00FBt</th>
+          <th className="px-4 py-3 text-right">Coût</th>
         </tr>
       </thead>
       <tbody>
@@ -254,10 +267,10 @@ function InsuranceTab({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
       <thead>
         <tr className="bg-[#F0F2F5] text-[11px] uppercase tracking-wider text-[#64748B]">
           <th className="px-4 py-3 text-left">Compagnie</th>
-          <th className="px-4 py-3 text-left">N\u00B0 Police</th>
+          <th className="px-4 py-3 text-left">N° Police</th>
           <th className="px-4 py-3 text-left">Couverture</th>
-          <th className="px-4 py-3 text-left">D\u00E9but</th>
-          <th className="px-4 py-3 text-left">\u00C9ch\u00E9ance</th>
+          <th className="px-4 py-3 text-left">Début</th>
+          <th className="px-4 py-3 text-left">Échéance</th>
           <th className="px-4 py-3 text-left">Statut</th>
           <th className="px-4 py-3 text-right">Prime</th>
         </tr>
@@ -299,9 +312,9 @@ export default function VehicleDetailPage(): JSX.Element {
     return (
       <div className="min-h-screen bg-[#F4F6F9] flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-[#1A2332] mb-2">V\u00E9hicule introuvable</h2>
+          <h2 className="text-lg font-semibold text-[#1A2332] mb-2">Véhicule introuvable</h2>
           <button type="button" onClick={() => navigate('/flotte')} className="text-[#1D6FA4] hover:underline text-sm">
-            Retour \u00E0 la flotte
+            Retour à la flotte
           </button>
         </div>
       </div>
@@ -372,7 +385,7 @@ export default function VehicleDetailPage(): JSX.Element {
         <div className="p-4">
           {activeTab === 'infos' && <InfoGrid vehicle={vehicle} />}
           {activeTab === 'historique' && <HistoryTab vehicleId={vehicle.id} />}
-          {activeTab === 'locations' && <RentalsTab vehicle={vehicle} />}
+          {activeTab === 'locations' && <RentalsTab vehicleId={vehicle.id} />}
           {activeTab === 'interventions' && <MaintenancesTab vehicle={vehicle} />}
           {activeTab === 'assurance' && <InsuranceTab vehicle={vehicle} />}
         </div>

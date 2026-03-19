@@ -156,7 +156,7 @@ export default function FlottePage(): JSX.Element {
               }}
               className="px-4 py-2 bg-[#1D6FA4] text-white text-sm font-medium rounded-md hover:bg-[#185d8a] transition-colors"
             >
-              + V\u00E9hicule
+              + Véhicule
             </button>
           )}
         </div>
@@ -187,7 +187,7 @@ export default function FlottePage(): JSX.Element {
         >
           <option value="">Tous les statuts</option>
           <option value="DISPONIBLE">Disponible</option>
-          <option value="LOUE">Lou\u00E9</option>
+          <option value="LOUE">Loué</option>
           <option value="MAINTENANCE">Maintenance</option>
           <option value="HORS_SERVICE">Hors service</option>
         </select>
@@ -218,9 +218,9 @@ export default function FlottePage(): JSX.Element {
           <div className="p-8 text-center text-[#64748B]">Chargement...</div>
         ) : vehicles.length === 0 ? (
           <EmptyState
-            title="Aucun v\u00E9hicule"
-            description="Aucun v\u00E9hicule ne correspond aux filtres s\u00E9lectionn\u00E9s."
-            action={canWrite ? { label: 'Ajouter un v\u00E9hicule', onClick: () => setModalOpen(true) } : undefined}
+            title="Aucun véhicule"
+            description="Aucun véhicule ne correspond aux filtres sélectionnés."
+            action={canWrite ? { label: 'Ajouter un véhicule', onClick: () => setModalOpen(true) } : undefined}
           />
         ) : (
           <>
@@ -231,11 +231,11 @@ export default function FlottePage(): JSX.Element {
                     Immatriculation{sortIndicator('immatriculation')}
                   </th>
                   <th className="px-4 py-3 text-left cursor-pointer" onClick={() => handleSort('marque')}>
-                    Marque Mod\u00E8le{sortIndicator('marque')}
+                    Marque Modèle{sortIndicator('marque')}
                   </th>
                   <th className="px-4 py-3 text-left">Client</th>
                   <th className="px-4 py-3 text-left cursor-pointer" onClick={() => handleSort('annee')}>
-                    Ann\u00E9e{sortIndicator('annee')}
+                    Année{sortIndicator('annee')}
                   </th>
                   <th className="px-4 py-3 text-right cursor-pointer" onClick={() => handleSort('km')}>
                     Km{sortIndicator('km')}
@@ -358,7 +358,7 @@ export default function FlottePage(): JSX.Element {
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full">
             <h3 className="text-lg font-semibold text-[#1A2332] mb-2">Confirmer la suppression</h3>
             <p className="text-sm text-[#64748B] mb-4">
-              \u00CAtes-vous s\u00FBr de vouloir supprimer ce v\u00E9hicule ? Cette action est irr\u00E9versible.
+              Êtes-vous sûr de vouloir supprimer ce véhicule ? Cette action est irréversible.
             </p>
             <div className="flex justify-end gap-3">
               <button
