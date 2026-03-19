@@ -6,8 +6,10 @@ import { rateLimit } from 'express-rate-limit';
 import { logger } from './lib/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import swaggerUi from 'swagger-ui-express';
 import { authRouter } from './routes/auth.routes';
 import { vehiclesRouter } from './routes/vehicles.routes';
+import { swaggerSpec } from './lib/swagger';
 
 const app: Express = express();
 const PORT = process.env['PORT'] ?? 3000;
@@ -38,6 +40,14 @@ app.use(cookieParser());
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Swagger docs (dev only)
+if (process.env['NODE_ENV'] !== 'production') {
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get('/api/docs.json', (_req, res) => {
+    res.json(swaggerSpec);
+  });
+}
 
 // API routes
 app.use('/api/v1/auth', authRouter);
