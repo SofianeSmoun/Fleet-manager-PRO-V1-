@@ -5,6 +5,7 @@ import StatusBadge from '@/components/StatusBadge';
 import EmptyState from '@/components/EmptyState';
 import VehicleFormModal from '@/components/VehicleFormModal';
 import { getAccessToken } from '@/lib/auth-token';
+import { api } from '@/lib/axios';
 import type { VehicleFilters, Vehicle } from '@/types/vehicle';
 import type { VehicleStatus } from '@/types';
 
@@ -34,6 +35,7 @@ export default function FlottePage(): JSX.Element {
   const [modalOpen, setModalOpen] = useState(false);
   const [editVehicle, setEditVehicle] = useState<Vehicle | undefined>(undefined);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const { data: result, isLoading } = useVehicles(filters);
   const createMutation = useCreateVehicle();
@@ -97,6 +99,37 @@ export default function FlottePage(): JSX.Element {
     });
   };
 
+  const handleExportExcel = useCallback(async (): Promise<void> => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filters.statut) params.set('statut', filters.statut);
+      if (filters.marque) params.set('marque', filters.marque);
+      if (filters.q) params.set('q', filters.q);
+      if (filters.clientId) params.set('clientId', filters.clientId);
+      const response = await api.get(`/vehicles/export/excel?${params.toString()}`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data as BlobPart], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const disposition = response.headers['content-disposition'] as string | undefined;
+      const match = disposition?.match(/filename=(.+)/);
+      a.href = url;
+      a.download = match?.[1] ?? 'flotte-export.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Toast error handled by axios interceptor
+    } finally {
+      setExporting(false);
+    }
+  }, [filters]);
+
   const startIdx = (page - 1) * (filters.limit ?? 15) + 1;
   const endIdx = Math.min(page * (filters.limit ?? 15), total);
 
@@ -105,18 +138,28 @@ export default function FlottePage(): JSX.Element {
       {/* Topbar */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-[#1A2332]">Flotte</h1>
-        {canWrite && (
+        <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => {
-              setEditVehicle(undefined);
-              setModalOpen(true);
-            }}
-            className="px-4 py-2 bg-[#1D6FA4] text-white text-sm font-medium rounded-md hover:bg-[#185d8a] transition-colors"
+            disabled={total === 0 || exporting}
+            onClick={() => { void handleExportExcel(); }}
+            className="px-4 py-2 border border-[#1D6FA4] text-[#1D6FA4] text-sm font-medium rounded-md hover:bg-[#EBF5FB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            + V\u00E9hicule
+            {exporting ? 'Export...' : 'Exporter Excel'}
           </button>
-        )}
+          {canWrite && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditVehicle(undefined);
+                setModalOpen(true);
+              }}
+              className="px-4 py-2 bg-[#1D6FA4] text-white text-sm font-medium rounded-md hover:bg-[#185d8a] transition-colors"
+            >
+              + V\u00E9hicule
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI cards */}

@@ -106,8 +106,9 @@ export async function exportVehiclesToExcel(req: Request, res: Response, next: N
   try {
     const filters = vehicleFiltersSchema.parse(req.query);
     const buffer = await vehicleService.exportVehiclesToExcel(filters);
+    const today = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=flotte.xlsx');
+    res.setHeader('Content-Disposition', `attachment; filename=flotte-export-${today}.xlsx`);
     res.send(buffer);
   } catch (err) {
     next(err);

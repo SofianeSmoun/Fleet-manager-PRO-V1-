@@ -1,3 +1,8 @@
+if (process.env['NODE_ENV'] === 'production') {
+  console.error('SEED BLOQUE : NODE_ENV=production — interdit en production');
+  process.exit(1);
+}
+
 import {
   PrismaClient,
   Role,

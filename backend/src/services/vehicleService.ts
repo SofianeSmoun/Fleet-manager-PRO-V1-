@@ -320,6 +320,13 @@ export async function exportVehicleHistoryToExcel(
   return Buffer.from(buffer);
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  DISPONIBLE: 'FF0E7C59',
+  LOUE: 'FF1D6FA4',
+  MAINTENANCE: 'FFB45309',
+  HORS_SERVICE: 'FF4A5568',
+};
+
 export async function exportVehiclesToExcel(filters: VehicleFilters): Promise<Buffer> {
   // Récupérer tous les véhicules (sans pagination pour l'export)
   const where: Prisma.VehicleWhereInput = { deletedAt: null };
@@ -336,10 +343,7 @@ export async function exportVehiclesToExcel(filters: VehicleFilters): Promise<Bu
 
   const vehicles = await prisma.vehicle.findMany({
     where,
-    include: {
-      client: { select: { nom: true } },
-      maintenances: { orderBy: { createdAt: 'desc' }, take: 1 },
-    },
+    include: { client: { select: { nom: true } } },
     orderBy: { [filters.sortBy]: filters.order },
   });
 
@@ -350,26 +354,26 @@ export async function exportVehiclesToExcel(filters: VehicleFilters): Promise<Bu
     { header: 'Immatriculation', key: 'immatriculation', width: 18 },
     { header: 'Marque', key: 'marque', width: 15 },
     { header: 'Modèle', key: 'modele', width: 15 },
-    { header: 'Année', key: 'annee', width: 8 },
+    { header: 'Année', key: 'annee', width: 10 },
     { header: 'Km', key: 'km', width: 12 },
     { header: 'Statut', key: 'statut', width: 15 },
     { header: 'Client', key: 'client', width: 20 },
-    { header: 'Dernière maintenance', key: 'derniereMaintenance', width: 20 },
+    { header: 'Carburant', key: 'carburant', width: 12 },
+    { header: 'Couleur', key: 'couleur', width: 12 },
+    { header: 'Notes', key: 'notes', width: 25 },
+    { header: 'Date création', key: 'createdAt', width: 15 },
   ];
 
-  // Style header
+  // Style header — fond #0D1B2A, texte blanc, gras, hauteur 20
   const headerRow = sheet.getRow(1);
-  headerRow.font = { bold: true };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF0D1B2A' },
-  };
+  headerRow.height = 20;
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D1B2A' } };
 
-  for (const v of vehicles) {
-    const lastMaint = v.maintenances[0];
-    sheet.addRow({
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i];
+    if (!v) continue;
+    const row = sheet.addRow({
       immatriculation: v.immatriculation,
       marque: v.marque,
       modele: v.modele,
@@ -377,10 +381,32 @@ export async function exportVehiclesToExcel(filters: VehicleFilters): Promise<Bu
       km: v.km,
       statut: v.statut,
       client: v.client.nom,
-      derniereMaintenance: lastMaint
-        ? new Date(lastMaint.dateEntree).toLocaleDateString('fr-FR')
-        : '—',
+      carburant: v.carburant,
+      couleur: v.couleur ?? '',
+      notes: v.notes ?? '',
+      createdAt: new Date(v.createdAt).toLocaleDateString('fr-FR'),
     });
+
+    // Alternance lignes : blanc / #F4F6F9
+    if (i % 2 === 1) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F6F9' } };
+    }
+
+    // Couleur police statut
+    const statusColor = STATUS_COLORS[v.statut];
+    if (statusColor) {
+      row.getCell('statut').font = { color: { argb: statusColor }, bold: true };
+    }
+  }
+
+  // Auto-ajustement largeurs (min 10, max 30)
+  for (const col of sheet.columns) {
+    let maxLen = String(col.header ?? '').length;
+    col.eachCell?.({ includeEmpty: false }, (cell) => {
+      const len = String(cell.value ?? '').length;
+      if (len > maxLen) maxLen = len;
+    });
+    col.width = Math.max(10, Math.min(30, maxLen + 2));
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
