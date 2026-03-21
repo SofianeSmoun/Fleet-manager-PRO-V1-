@@ -15,6 +15,13 @@ export type MaintenanceStatus = 'EN_ATTENTE' | 'EN_COURS' | 'TERMINEE' | 'EN_RET
 
 export type GarageStatus = 'DISPONIBLE' | 'OCCUPE' | 'INDISPONIBLE';
 
+export type Specialty =
+  | 'MECANIQUE_GENERALE'
+  | 'ELECTRICITE_AUTO'
+  | 'CARROSSERIE'
+  | 'PNEUMATIQUES_FREINS'
+  | 'MOTEUR_TRANSMISSION';
+
 export type StockMovementType = 'ENTREE' | 'SORTIE' | 'TRANSFERT';
 
 export type InsuranceStatus = 'ACTIVE' | 'EXPIRANT_BIENTOT' | 'EXPIREE';
