@@ -1,4 +1,22 @@
-import { PrismaClient, Role, VehicleStatus, Fuel, RentalStatus, MaintenanceType, MaintenanceStatus, GarageStatus, Specialty, SparePartCategory, StockLocationType, StockMovementType, InsuranceStatus } from '@prisma/client';
+if (process.env['NODE_ENV'] === 'production') {
+  console.error('SEED BLOQUE : NODE_ENV=production — interdit en production');
+  process.exit(1);
+}
+
+import {
+  PrismaClient,
+  Role,
+  VehicleStatus,
+  Fuel,
+  RentalStatus,
+  MaintenanceType,
+  MaintenanceStatus,
+  GarageStatus,
+  Specialty,
+  SparePartCategory,
+  StockLocationType,
+  InsuranceStatus,
+} from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -75,196 +93,157 @@ async function main(): Promise<void> {
   // ─── 2. CLIENTS ────────────────────────────────────────────────────────────
   console.warn('  → Clients');
 
-  const clients = await Promise.all([
-    prisma.client.upsert({
-      where: { id: 'client-cosider-001' },
-      update: {},
-      create: {
-        id: 'client-cosider-001',
-        nom: 'Cosider',
-        secteur: 'BTP / Travaux Publics',
-        adresse: 'Route Nationale N°1, Dar El Beïda, Alger',
-        contactNom: 'Mourad Kellou',
-        contactEmail: 'mkellou@cosider.dz',
-        contactTel: '+213 21 50 00 10',
-        couleur: '#E74C3C',
-      },
-    }),
-    prisma.client.upsert({
-      where: { id: 'client-sonatrach-001' },
-      update: {},
-      create: {
-        id: 'client-sonatrach-001',
-        nom: 'Sonatrach',
-        secteur: 'Pétrole & Gaz',
-        adresse: 'Djenane El Malik, Hydra, Alger',
-        contactNom: 'Fatima Zitoun',
-        contactEmail: 'fzitoun@sonatrach.dz',
-        contactTel: '+213 21 54 60 00',
-        couleur: '#27AE60',
-      },
-    }),
-    prisma.client.upsert({
-      where: { id: 'client-sonelgaz-001' },
-      update: {},
-      create: {
-        id: 'client-sonelgaz-001',
-        nom: 'Sonelgaz',
-        secteur: 'Énergie / Électricité & Gaz',
-        adresse: '2 Boulevard Krim Belkacem, Alger Centre',
-        contactNom: 'Rachid Benarfa',
-        contactEmail: 'rbenarfa@sonelgaz.dz',
-        contactTel: '+213 21 73 40 00',
-        couleur: '#F39C12',
-      },
-    }),
-    prisma.client.upsert({
-      where: { id: 'client-agrodiv-001' },
-      update: {},
-      create: {
-        id: 'client-agrodiv-001',
-        nom: 'Agrodiv',
-        secteur: 'Agriculture / Agroalimentaire',
-        adresse: '5 Rue Hassiba Ben Bouali, Alger',
-        contactNom: 'Samira Tebbal',
-        contactEmail: 'stebbal@agrodiv.dz',
-        contactTel: '+213 21 66 20 00',
-        couleur: '#8E44AD',
-      },
-    }),
-  ]);
+  const cosider = await prisma.client.create({
+    data: {
+      nom: 'Cosider',
+      secteur: 'BTP / Travaux Publics',
+      adresse: 'Route Nationale N°1, Dar El Beïda, Alger',
+      contactNom: 'Mourad Kellou',
+      contactEmail: 'mkellou@cosider.dz',
+      contactTel: '+213 21 50 00 10',
+      couleur: '#E74C3C',
+    },
+  });
 
-  const [cosider, sonatrach, sonelgaz, agrodiv] = clients;
+  const sonatrach = await prisma.client.create({
+    data: {
+      nom: 'Sonatrach',
+      secteur: 'Pétrole & Gaz',
+      adresse: 'Djenane El Malik, Hydra, Alger',
+      contactNom: 'Fatima Zitoun',
+      contactEmail: 'fzitoun@sonatrach.dz',
+      contactTel: '+213 21 54 60 00',
+      couleur: '#27AE60',
+    },
+  });
+
+  const sonelgaz = await prisma.client.create({
+    data: {
+      nom: 'Sonelgaz',
+      secteur: 'Énergie / Électricité & Gaz',
+      adresse: '2 Boulevard Krim Belkacem, Alger Centre',
+      contactNom: 'Rachid Benarfa',
+      contactEmail: 'rbenarfa@sonelgaz.dz',
+      contactTel: '+213 21 73 40 00',
+      couleur: '#F39C12',
+    },
+  });
+
+  const agrodiv = await prisma.client.create({
+    data: {
+      nom: 'Agrodiv',
+      secteur: 'Agriculture / Agroalimentaire',
+      adresse: '5 Rue Hassiba Ben Bouali, Alger',
+      contactNom: 'Samira Tebbal',
+      contactEmail: 'stebbal@agrodiv.dz',
+      contactTel: '+213 21 66 20 00',
+      couleur: '#8E44AD',
+    },
+  });
 
   // ─── 3. GARAGES ────────────────────────────────────────────────────────────
   console.warn('  → Garages');
 
-  const garages = await Promise.all([
-    prisma.garage.upsert({
-      where: { id: 'garage-belcourt-001' },
-      update: {},
-      create: {
-        id: 'garage-belcourt-001',
-        nom: 'Auto Service Belcourt',
-        adresse: '12 Rue Belouizdad',
-        ville: 'Alger',
-        telephone: '+213 21 67 45 20',
-        email: 'contact@autoservice-belcourt.dz',
-        specialite: Specialty.MECANIQUE_GENERALE,
-        statut: GarageStatus.DISPONIBLE,
-      },
-    }),
-    prisma.garage.upsert({
-      where: { id: 'garage-hussein-001' },
-      update: {},
-      create: {
-        id: 'garage-hussein-001',
-        nom: 'Garage Hussein Dey Élite',
-        adresse: '45 Avenue de l\'ALN',
-        ville: 'Hussein Dey',
-        telephone: '+213 21 77 33 11',
-        email: 'elite@garage-hussein.dz',
-        specialite: Specialty.MOTEUR_TRANSMISSION,
-        statut: GarageStatus.DISPONIBLE,
-      },
-    }),
-    prisma.garage.upsert({
-      where: { id: 'garage-kouba-001' },
-      update: {},
-      create: {
-        id: 'garage-kouba-001',
-        nom: 'Tech Auto Kouba',
-        adresse: '8 Cité des Pins',
-        ville: 'Kouba',
-        telephone: '+213 21 68 90 55',
-        specialite: Specialty.ELECTRICITE_AUTO,
-        statut: GarageStatus.DISPONIBLE,
-      },
-    }),
-    prisma.garage.upsert({
-      where: { id: 'garage-bab-ezzouar-001' },
-      update: {},
-      create: {
-        id: 'garage-bab-ezzouar-001',
-        nom: 'Centre Auto Bab Ezzouar',
-        adresse: 'Zone Industrielle Bab Ezzouar',
-        ville: 'Bab Ezzouar',
-        telephone: '+213 21 56 78 90',
-        email: 'info@centreauto-babezzouar.dz',
-        specialite: Specialty.CARROSSERIE,
-        statut: GarageStatus.DISPONIBLE,
-      },
-    }),
-    prisma.garage.upsert({
-      where: { id: 'garage-dar-beida-001' },
-      update: {},
-      create: {
-        id: 'garage-dar-beida-001',
-        nom: 'Pneumo Stop Dar El Beïda',
-        adresse: '22 Route de l\'Aéroport',
-        ville: 'Dar El Beïda',
-        telephone: '+213 21 50 12 34',
-        specialite: Specialty.PNEUMATIQUES_FREINS,
-        statut: GarageStatus.DISPONIBLE,
-      },
-    }),
-    prisma.garage.upsert({
-      where: { id: 'garage-bir-mourad-001' },
-      update: {},
-      create: {
-        id: 'garage-bir-mourad-001',
-        nom: 'Multiservice Bir Mourad Raïs',
-        adresse: '3 Rue Hassiba Ben Bouali',
-        ville: 'Bir Mourad Raïs',
-        telephone: '+213 21 44 56 78',
-        email: 'multiservice.bmr@gmail.com',
-        specialite: Specialty.MECANIQUE_GENERALE,
-        statut: GarageStatus.DISPONIBLE,
-      },
-    }),
-  ]);
+  const garageBelcourt = await prisma.garage.create({
+    data: {
+      nom: 'Auto Service Belcourt',
+      adresse: '12 Rue Belouizdad',
+      ville: 'Alger',
+      telephone: '+213 21 67 45 20',
+      email: 'contact@autoservice-belcourt.dz',
+      specialite: Specialty.MECANIQUE_GENERALE,
+      statut: GarageStatus.DISPONIBLE,
+    },
+  });
 
-  const [garageBelcourt, garageHussein] = garages;
+  const garageHussein = await prisma.garage.create({
+    data: {
+      nom: 'Garage Hussein Dey Élite',
+      adresse: "45 Avenue de l'ALN",
+      ville: 'Hussein Dey',
+      telephone: '+213 21 77 33 11',
+      email: 'elite@garage-hussein.dz',
+      specialite: Specialty.MOTEUR_TRANSMISSION,
+      statut: GarageStatus.DISPONIBLE,
+    },
+  });
+
+  const garageKouba = await prisma.garage.create({
+    data: {
+      nom: 'Tech Auto Kouba',
+      adresse: '8 Cité des Pins',
+      ville: 'Kouba',
+      telephone: '+213 21 68 90 55',
+      specialite: Specialty.ELECTRICITE_AUTO,
+      statut: GarageStatus.DISPONIBLE,
+    },
+  });
+
+  const garageBabEzzouar = await prisma.garage.create({
+    data: {
+      nom: 'Centre Auto Bab Ezzouar',
+      adresse: 'Zone Industrielle Bab Ezzouar',
+      ville: 'Bab Ezzouar',
+      telephone: '+213 21 56 78 90',
+      email: 'info@centreauto-babezzouar.dz',
+      specialite: Specialty.CARROSSERIE,
+      statut: GarageStatus.DISPONIBLE,
+    },
+  });
+
+  const garageDarBeida = await prisma.garage.create({
+    data: {
+      nom: 'Pneumo Stop Dar El Beïda',
+      adresse: "22 Route de l'Aéroport",
+      ville: 'Dar El Beïda',
+      telephone: '+213 21 50 12 34',
+      specialite: Specialty.PNEUMATIQUES_FREINS,
+      statut: GarageStatus.DISPONIBLE,
+    },
+  });
+
+  const garageBirMourad = await prisma.garage.create({
+    data: {
+      nom: 'Multiservice Bir Mourad Raïs',
+      adresse: '3 Rue Hassiba Ben Bouali',
+      ville: 'Bir Mourad Raïs',
+      telephone: '+213 21 44 56 78',
+      email: 'multiservice.bmr@gmail.com',
+      specialite: Specialty.MECANIQUE_GENERALE,
+      statut: GarageStatus.DISPONIBLE,
+    },
+  });
+
+  const garages = [garageBelcourt, garageHussein, garageKouba, garageBabEzzouar, garageDarBeida, garageBirMourad];
 
   // ─── 4. STOCK LOCATIONS ────────────────────────────────────────────────────
   console.warn('  → Stock locations');
 
-  const stockLocations = await Promise.all([
-    prisma.stockLocation.upsert({
-      where: { id: 'loc-entrepot-central' },
-      update: {},
-      create: {
-        id: 'loc-entrepot-central',
-        nom: 'Entrepôt Central',
-        type: StockLocationType.ENTREPOT,
-        adresse: 'Zone Industrielle Rouiba, Alger',
-      },
-    }),
-    prisma.stockLocation.upsert({
-      where: { id: 'loc-garage-belcourt' },
-      update: {},
-      create: {
-        id: 'loc-garage-belcourt',
-        nom: 'Stock Garage Belcourt',
-        type: StockLocationType.GARAGE,
-        garageId: garageBelcourt.id,
-        adresse: '12 Rue Belouizdad, Alger',
-      },
-    }),
-    prisma.stockLocation.upsert({
-      where: { id: 'loc-garage-hussein' },
-      update: {},
-      create: {
-        id: 'loc-garage-hussein',
-        nom: 'Stock Garage Hussein Dey',
-        type: StockLocationType.GARAGE,
-        garageId: garageHussein.id,
-        adresse: '45 Avenue de l\'ALN, Hussein Dey',
-      },
-    }),
-  ]);
+  const locEntrepot = await prisma.stockLocation.create({
+    data: {
+      nom: 'Entrepôt Central',
+      type: StockLocationType.ENTREPOT,
+      adresse: 'Zone Industrielle Rouiba, Alger',
+    },
+  });
 
-  const [locEntrepot] = stockLocations;
+  await prisma.stockLocation.create({
+    data: {
+      nom: 'Stock Garage Belcourt',
+      type: StockLocationType.GARAGE,
+      garageId: garageBelcourt.id,
+      adresse: '12 Rue Belouizdad, Alger',
+    },
+  });
+
+  await prisma.stockLocation.create({
+    data: {
+      nom: 'Stock Garage Hussein Dey',
+      type: StockLocationType.GARAGE,
+      garageId: garageHussein.id,
+      adresse: "45 Avenue de l'ALN, Hussein Dey",
+    },
+  });
 
   // ─── 5. SPARE PARTS ────────────────────────────────────────────────────────
   console.warn('  → Spare parts');
@@ -366,7 +345,7 @@ async function main(): Promise<void> {
       update: {},
       create: {
         reference: 'BOU-GIE-001',
-        designation: 'Bougie d\'allumage (set 4)',
+        designation: "Bougie d'allumage (set 4)",
         categorie: SparePartCategory.MOTEUR,
         unite: 'Kit',
         prixUnitaire: 2400,
@@ -445,10 +424,15 @@ async function main(): Promise<void> {
     VehicleStatus.MAINTENANCE,
   ];
 
-  const vehicleIds: string[] = [];
+  interface CreatedVehicle {
+    id: string;
+    clientId: string;
+  }
+
+  const vehicles: CreatedVehicle[] = [];
   let vehicleCounter = 1;
 
-  for (const { client, count, prefix } of vehicleDistribution) {
+  for (const { client, count } of vehicleDistribution) {
     for (let i = 0; i < count; i++) {
       const wilayas = [16, 9, 25, 31, 35, 6, 19, 23];
       const wilaya = wilayas[vehicleCounter % wilayas.length] ?? 16;
@@ -461,14 +445,8 @@ async function main(): Promise<void> {
       const statut = statuses[vehicleCounter % statuses.length] ?? VehicleStatus.DISPONIBLE;
       const carburant = carburants[vehicleCounter % carburants.length] ?? Fuel.DIESEL;
 
-      const vehicleId = `vehicle-${prefix}-${String(vehicleCounter).padStart(3, '0')}`;
-      vehicleIds.push(vehicleId);
-
-      await prisma.vehicle.upsert({
-        where: { id: vehicleId },
-        update: {},
-        create: {
-          id: vehicleId,
+      const vehicle = await prisma.vehicle.create({
+        data: {
           immatriculation: immat,
           marque: marqueData.marque,
           modele,
@@ -480,6 +458,7 @@ async function main(): Promise<void> {
         },
       });
 
+      vehicles.push({ id: vehicle.id, clientId: vehicle.clientId });
       vehicleCounter++;
     }
   }
@@ -488,23 +467,18 @@ async function main(): Promise<void> {
   console.warn('  → Rentals');
 
   // Les véhicules avec statut LOUE sont ceux aux index 4, 11, 18, ... (statuses[4]=LOUE)
-  const louedVehicleIds = vehicleIds.filter((_, idx) => statuses[(idx + 1) % statuses.length] === VehicleStatus.LOUE);
+  const louedVehicles = vehicles.filter(
+    (_, idx) => statuses[(idx + 1) % statuses.length] === VehicleStatus.LOUE,
+  );
 
-  for (let i = 0; i < Math.min(louedVehicleIds.length, 10); i++) {
-    const vid = louedVehicleIds[i]!;
-    const vehicle = await prisma.vehicle.findUnique({ where: { id: vid } });
-    if (!vehicle) continue;
-
-    const rentalId = `rental-${String(i + 1).padStart(3, '0')}`;
+  for (let i = 0; i < Math.min(louedVehicles.length, 10); i++) {
+    const v = louedVehicles[i]!;
     const isOverdue = i === 2; // 1 location EN_RETARD intentionnel
 
-    await prisma.rental.upsert({
-      where: { id: rentalId },
-      update: {},
-      create: {
-        id: rentalId,
-        vehicleId: vid,
-        clientId: vehicle.clientId,
+    await prisma.rental.create({
+      data: {
+        vehicleId: v.id,
+        clientId: v.clientId,
         dateDebut: daysAgo(90 + i * 15),
         dateFinPrevue: isOverdue ? daysAgo(10) : daysFromNow(90 - i * 5),
         statut: isOverdue ? RentalStatus.EN_RETARD : RentalStatus.EN_COURS,
@@ -518,58 +492,58 @@ async function main(): Promise<void> {
   // ─── 8. MAINTENANCES (6 interventions avec statuts variés) ─────────────────
   console.warn('  → Maintenances');
 
-  const maintenanceVehicleIds = vehicleIds.filter((_, idx) =>
-    statuses[(idx + 1) % statuses.length] === VehicleStatus.MAINTENANCE,
+  const maintenanceVehicles = vehicles.filter(
+    (_, idx) => statuses[(idx + 1) % statuses.length] === VehicleStatus.MAINTENANCE,
   );
 
   const maintenanceScenarios = [
     {
-      id: 'maint-001',
       type: MaintenanceType.PREVENTIVE,
       nature: 'Vidange + remplacement filtres (révision 30 000 km)',
       statut: MaintenanceStatus.TERMINEE,
       dateDelta: -30,
       durée: 2,
-      rapport: 'Révision effectuée. Vidange moteur 5W-30, filtre huile et filtre air remplacés. Véhicule en bon état général.',
+      rapport:
+        'Révision effectuée. Vidange moteur 5W-30, filtre huile et filtre air remplacés. Véhicule en bon état général.',
+      isOverdue: false,
     },
     {
-      id: 'maint-002',
       type: MaintenanceType.CORRECTIVE,
       nature: 'Remplacement plaquettes de frein avant',
       statut: MaintenanceStatus.EN_COURS,
       dateDelta: -5,
       durée: 3,
       rapport: null,
+      isOverdue: false,
     },
     {
-      id: 'maint-003',
       type: MaintenanceType.CORRECTIVE,
       nature: 'Panne électrique — diagnostic alternateur',
       statut: MaintenanceStatus.EN_ATTENTE,
       dateDelta: -2,
       durée: 5,
       rapport: null,
+      isOverdue: false,
     },
     {
-      id: 'maint-004',
       type: MaintenanceType.PREVENTIVE,
       nature: 'Remplacement courroie de distribution (90 000 km)',
       statut: MaintenanceStatus.EN_COURS,
       dateDelta: -15,
       durée: 4,
       rapport: null,
+      isOverdue: false,
     },
     {
-      id: 'maint-005',
       type: MaintenanceType.ACCIDENTELLE,
       nature: 'Réparation carrosserie — choc pare-chocs arrière',
       statut: MaintenanceStatus.EN_ATTENTE,
       dateDelta: -3,
       durée: 7,
       rapport: null,
+      isOverdue: false,
     },
     {
-      id: 'maint-006',
       type: MaintenanceType.PREVENTIVE,
       nature: 'Remplacement pneumatiques (4 pneus)',
       // EN_RETARD intentionnel : dateSortiePrevue dépassée, statut EN_COURS
@@ -577,30 +551,25 @@ async function main(): Promise<void> {
       dateDelta: -20,
       durée: 3, // durée dépassée → EN_RETARD dynamique
       rapport: null,
+      isOverdue: true,
     },
   ];
 
   for (let i = 0; i < maintenanceScenarios.length; i++) {
     const scenario = maintenanceScenarios[i]!;
-    const vid = maintenanceVehicleIds[i % maintenanceVehicleIds.length] ?? vehicleIds[i * 7]!;
-    const vehicle = await prisma.vehicle.findUnique({ where: { id: vid } });
-    if (!vehicle) continue;
+    const v = maintenanceVehicles[i % maintenanceVehicles.length] ?? vehicles[i * 7]!;
 
     const garage = garages[i % garages.length]!;
     const dateEntree = daysAgo(-scenario.dateDelta);
     const dateSortiePrevue = new Date(dateEntree);
     dateSortiePrevue.setDate(dateSortiePrevue.getDate() + scenario.durée);
 
-    // maint-006 : dateSortiePrevue dans le passé → EN_RETARD dynamique
-    const dateSortiePrevueFinal =
-      scenario.id === 'maint-006' ? daysAgo(5) : dateSortiePrevue;
+    // Scénario EN_RETARD : dateSortiePrevue dans le passé
+    const dateSortiePrevueFinal = scenario.isOverdue ? daysAgo(5) : dateSortiePrevue;
 
-    await prisma.maintenance.upsert({
-      where: { id: scenario.id },
-      update: {},
-      create: {
-        id: scenario.id,
-        vehicleId: vid,
+    await prisma.maintenance.create({
+      data: {
+        vehicleId: v.id,
         garageId: garage.id,
         type: scenario.type,
         nature: scenario.nature,
@@ -618,15 +587,11 @@ async function main(): Promise<void> {
   // ─── 9. INSURANCE POLICIES (120 polices) ───────────────────────────────────
   console.warn('  → Insurance policies (120)');
 
-  const compagnies = [
-    'CAAT', 'SAA', 'CASH Assurances', 'Alliance Assurances',
-    'TRUST Algérie', 'AXA Algérie', 'GAM Assurances',
-  ];
+  const compagnies = ['CAAT', 'SAA', 'CASH Assurances', 'Alliance Assurances', 'TRUST Algérie', 'AXA Algérie', 'GAM Assurances'];
   const typesCouverture = ['Tous risques', 'Tiers', 'Tiers + Vol + Incendie'];
 
-  for (let i = 0; i < vehicleIds.length; i++) {
-    const vid = vehicleIds[i]!;
-    const policeId = `insurance-${String(i + 1).padStart(3, '0')}`;
+  for (let i = 0; i < vehicles.length; i++) {
+    const v = vehicles[i]!;
 
     // Scénarios spéciaux pour les alertes :
     // Polices 1-2 : expirées
@@ -653,12 +618,9 @@ async function main(): Promise<void> {
     const dateDebut = new Date(dateEcheance);
     dateDebut.setFullYear(dateDebut.getFullYear() - 1);
 
-    await prisma.insurancePolicy.upsert({
-      where: { id: policeId },
-      update: {},
-      create: {
-        id: policeId,
-        vehicleId: vid,
+    await prisma.insurancePolicy.create({
+      data: {
+        vehicleId: v.id,
         compagnie: compagnies[i % compagnies.length]!,
         numeroPolice: `POL-${String(2025 + (i % 2))}-${String(10000 + i)}`,
         typeCouverture: typesCouverture[i % typesCouverture.length]!,
@@ -679,7 +641,9 @@ async function main(): Promise<void> {
   console.warn('  commercial@fleetmanager.dz   / Comm2026!  (COMMERCIAL)');
   console.warn('  lecteur@fleetmanager.dz      / Read2026!  (LECTEUR)');
   console.warn('─────────────────────────────────────────');
-  console.warn(`  ${String(vehicleCounter - 1)} véhicules · 4 clients · 6 garages · 10 pièces · 120 polices d'assurance`);
+  console.warn(
+    `  ${String(vehicleCounter - 1)} véhicules · 4 clients · 6 garages · 10 pièces · 120 polices d'assurance`,
+  );
 }
 
 main()

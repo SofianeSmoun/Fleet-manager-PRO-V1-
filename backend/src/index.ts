@@ -6,7 +6,14 @@ import { rateLimit } from 'express-rate-limit';
 import { logger } from './lib/logger';
 import { errorHandler } from './middleware/errorHandler';
 import { notFound } from './middleware/notFound';
+import swaggerUi from 'swagger-ui-express';
 import { authRouter } from './routes/auth.routes';
+import { vehiclesRouter } from './routes/vehicles.routes';
+import { rentalsRouter } from './routes/rentals.routes';
+import { clientsRouter } from './routes/clients.routes';
+import { auditLogsRouter } from './routes/auditLogs.routes';
+import { backupRouter } from './routes/backup.routes';
+import { swaggerSpec } from './lib/swagger';
 
 const app: Express = express();
 const PORT = process.env['PORT'] ?? 3000;
@@ -38,9 +45,21 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Swagger docs (dev only)
+if (process.env['NODE_ENV'] !== 'production') {
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get('/api/docs.json', (_req, res) => {
+    res.json(swaggerSpec);
+  });
+}
+
 // API routes
 app.use('/api/v1/auth', authRouter);
-// app.use('/api/v1/vehicles', vehiclesRouter);  — E2
+app.use('/api/v1/vehicles', vehiclesRouter);
+app.use('/api/v1/rentals', rentalsRouter);
+app.use('/api/v1/clients', clientsRouter);
+app.use('/api/v1/audit-logs', auditLogsRouter);
+app.use('/api/v1/admin/backup', backupRouter);
 
 // Error handling
 app.use(notFound);

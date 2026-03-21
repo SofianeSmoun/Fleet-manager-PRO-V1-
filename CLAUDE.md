@@ -77,7 +77,44 @@ pnpm run typecheck
 
 # Install toutes les dépendances
 pnpm install
+
+# Formatter (Prettier — 100 chars, single quotes, trailing commas all, LF)
+pnpm run format           # applique
+pnpm run format:check     # vérifie sans modifier
+
+# Dev frontend + backend en parallèle (hot-reload)
+pnpm run dev
 ```
+
+### Backup (`backend/`)
+
+```bash
+# Test chiffrement AES-256-GCM round-trip
+pnpm --filter backend exec tsx src/scripts/testBackup.ts encrypt-test
+
+# Backup manuel (nécessite BACKUP_ENCRYPTION_KEY dans .env)
+BACKUP_LOCAL_DIR=./backups pnpm --filter backend exec tsx src/scripts/testBackup.ts backup
+
+# Historique des 10 derniers backups
+pnpm --filter backend exec tsx src/scripts/testBackup.ts status
+
+# Restauration depuis un fichier chiffré local
+pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin_fichier.enc>
+```
+
+### Ports & Services
+
+| Service | Port | Note |
+|---------|------|------|
+| Frontend dev (Vite) | 8080 | Proxy `/api/*` → localhost:3000 |
+| Backend dev (Express) | 3000 | |
+| PostgreSQL | 5432 | Container `fleetmanager_postgres` |
+| Nginx (prod) | 80/443 | Reverse proxy + SPA serving |
+
+### Engines requises
+
+- Node.js >= 20.0.0
+- pnpm >= 9.0.0
 
 ---
 
@@ -91,29 +128,54 @@ pnpm install
 │   ├── prisma/
 │   │   ├── schema.prisma          ← source de vérité absolue de la DB
 │   │   ├── migrations/            ← historique SQL (commité dans git)
-│   │   └── seed.ts                ← 4 users · 4 clients · 120 véhicules · 6 garages · 10 pièces · 120 polices
+│   │   ├── seed.ts                ← 4 users · 4 clients · 120 véhicules · 6 garages · 10 pièces · 120 polices
+│   │   │                            ⚠️ Guard NODE_ENV=production → process.exit(1)
+│   │   └── create-admin.ts        ← script idempotent création admin (ADMIN_EMAIL/ADMIN_PASSWORD)
 │   └── src/
 │       ├── index.ts               ← Express app + montage routes (export default app pour tests)
+│       │                            Swagger UI monté à /api/docs (dev only)
 │       ├── lib/
 │       │   ├── prisma.ts          ← singleton PrismaClient
 │       │   ├── logger.ts          ← Winston + DailyRotateFile (JSON structuré)
-│       │   └── schemas.ts         ← schemas Zod partagés (login, forgotPassword, resetPassword)
+│       │   ├── schemas.ts         ← schemas Zod partagés (login, forgotPassword, resetPassword)
+│       │   └── swagger.ts         ← swagger-jsdoc config (OpenAPI 3.0)
+│       ├── schemas/
+│       │   └── rental.schema.ts   ← Zod schemas locations (create, close, update, filters)
 │       ├── middleware/
 │       │   ├── auth.ts            ← authenticate (JWT verify + DB lookup) + requireRole
 │       │   ├── validate.ts        ← factory Zod middleware → 422 si invalide
 │       │   ├── errorHandler.ts    ← ZodError→422, {statusCode}→code, sinon 500
 │       │   └── notFound.ts        ← 404 catch-all
-│       ├── routes/auth.routes.ts  ← rate limit 10/min + login/refresh/logout/forgot/reset
-│       ├── controllers/           ← handlers HTTP, délèguent aux services
-│       ├── services/auth.service.ts ← loginService, refreshService, forgotPasswordService, resetPasswordService
-│       └── tests/auth.test.ts     ← 11 tests Supertest (tous passent)
+│       ├── routes/
+│       │   ├── auth.routes.ts     ← rate limit 10/min + login/refresh/logout/forgot/reset
+│       │   ├── vehicles.routes.ts ← CRUD + status + km + export Excel + history
+│       │   ├── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle)
+│       │   └── clients.routes.ts  ← GET liste paginée + GET par id
+│       ├── controllers/
+│       │   ├── vehicle.controller.ts ← handlers véhicules + export Excel
+│       │   └── rental.controller.ts  ← handlers locations
+│       ├── services/
+│       │   ├── auth.service.ts    ← login, refresh, forgot, reset password
+│       │   ├── vehicleService.ts  ← CRUD + automate d'états (ALLOWED_TRANSITIONS) + Excel export
+│       │   └── rentalService.ts   ← CRUD locations + EN_RETARD dynamique + lifecycle véhicule
+│       └── tests/auth.test.ts     ← 33 tests Supertest (auth + vehicles + rentals)
 └── frontend/
     └── src/
         ├── main.tsx               ← QueryClient (staleTime 5min) + BrowserRouter
-        ├── App.tsx                ← routes : /login → LoginPage, /dashboard (E2)
+        ├── App.tsx                ← routes : /login, /flotte, /flotte/:id, /locations
         ├── lib/axios.ts           ← instance Axios + intercepteur auto-refresh JWT
-        ├── types/index.ts         ← enums TypeScript miroir du schema Prisma
-        └── pages/LoginPage.tsx    ← formulaire + 4 boutons quick-login démo
+        ├── types/
+        │   ├── index.ts           ← enums TypeScript miroir du schema Prisma
+        │   └── rental.ts          ← Rental, RentalsResponse, RentalsFilters
+        ├── hooks/
+        │   └── useRentals.ts      ← React Query hooks (useRentals, useCreateRental, useCloseRental...)
+        ├── components/
+        │   └── VehicleFormModal.tsx ← modal création/édition véhicule
+        └── pages/
+            ├── LoginPage.tsx      ← formulaire + 4 boutons quick-login démo
+            ├── FlottePage.tsx     ← liste véhicules + filtres + export Excel
+            ├── VehicleDetailPage.tsx ← fiche véhicule (infos, statuts, locations, historique)
+            └── LocationsPage.tsx  ← liste locations + KPIs + filtres + create/close modals
 ```
 
 ### Flux d'authentification
@@ -131,8 +193,15 @@ Le `access_token` est stocké **en mémoire** côté frontend (`getAccessToken()
 ### Middleware chain Express
 
 ```
-helmet → cors → rateLimit → cookieParser → json → routes → errorHandler → notFound
+helmet → cors → rateLimit → cookieParser → json → swagger (dev only) → routes → errorHandler → notFound
 ```
+
+### Swagger (dev only)
+
+- URL : `http://localhost:3000/api/docs` (UI) / `/api/docs.json` (spec)
+- Annotations : JSDoc `@swagger` dans chaque fichier routes
+- Monté **avant** notFound handler (sinon 404)
+- Import **statique** de `swagger-ui-express` (ESLint interdit `require()` et dynamic import cause race condition)
 
 ### Base de données — connexion
 
@@ -142,10 +211,22 @@ helmet → cors → rateLimit → cookieParser → json → routes → errorHand
 
 ### Points de vigilance
 
-- **`exactOptionalPropertyTypes: true`** dans tsconfig — les headers Supertest comme `res.headers['set-cookie']` doivent être typés via `unknown` puis narrowés, jamais castés directement en `string[]`.
+- **`exactOptionalPropertyTypes: true`** dans tsconfig — impact majeur sur tout le code :
+  - Headers Supertest : `res.headers['set-cookie']` doit être typé via `unknown` puis narrowé, jamais casté en `string[]`.
+  - **Prisma updates** : ne jamais passer `field: value | undefined` directement. Construire un payload explicite :
+    ```typescript
+    const updateData: Prisma.XUpdateInput = {};
+    if (data.field !== undefined) updateData.field = data.field;
+    ```
+  - **Interfaces frontend** : les props optionnelles doivent avoir `| undefined` explicite : `value?: string | undefined`.
 - **`StringValue` de `ms`** requis pour `jwt.sign({ expiresIn })` — cast obligatoire depuis `string`.
 - Le schema Prisma est la **source de vérité** — toujours migrer avant de coder la logique métier.
 - Les erreurs métier utilisent `Object.assign(new Error('msg'), { statusCode: 4xx })` — capturé par `errorHandler`.
+- **ESLint strict** : `max-warnings 0`, `no-explicit-any: error`, `explicit-function-return-type: warn`, `no-console` autorise uniquement `warn`/`error`. Les fonctions async sans `await` sont interdites (`require-await`).
+- **Prettier** : 100 chars, single quotes, trailing commas `all`, LF (Unix). Config dans `.prettierrc`.
+- **Backend = CommonJS** (`type: "commonjs"`), **Frontend = ES modules**.
+- **Frontend path alias** : `@/*` → `src/*` (configuré dans vite.config.ts + tsconfig).
+- **Docker healthcheck** : postgres utilise `pg_isready` (10s interval, 5 retries). Le backend attend que postgres soit healthy.
 
 ---
 
@@ -996,7 +1077,7 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 | Stack | Node.js 20 + React 18 | Léger sur VPS 4Go, Claude Code optimisé pour ce stack, cohérence TS full-stack |
 | VPS staging | À définir | Agnostique — n'importe quel VPS Linux avec Docker |
 | Versioning | Semantic Versioning | Tags v1.0.0 sur merge main via GitHub Actions |
-| Backup BDD | Google Drive + AES-256-GCM | Gratuit (15 Go), chiffré, compte client (cf. section 19) |
+| Backup BDD | Local + AES-256-GCM | Google Drive reporté V2 (quota Service Account) — stockage local chiffré (cf. section 19) |
 | Swagger | swagger-jsdoc (Option A) | Intégré Sprint 2, usage interne dev + livrable client futur |
 | Staging | Prod uniquement en V1 | Préprod si chantier majeur uniquement |
 | Données seed | Cosider/Sonatrach/etc. | Démo uniquement, pas des données client réelles |
@@ -1005,6 +1086,7 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 | Grafana + Loki | Écarté | Overkill pour 3 users — Winston + UptimeRobot suffisants V1 |
 | Backblaze B2 | Écarté | Données hors territoire national algérien |
 | Backup local client | Écarté | Dépendance infrastructure non maîtrisée |
+| Google Drive API V1 | Reporté V2 | Quota Service Account limité sur Google Drive personnel — nécessite Google Workspace |
 
 ---
 
@@ -1119,28 +1201,34 @@ Ajouter un job `test` dans `ci.yml` :
 
 ---
 
-## 19. Backup base de données — Google Drive + AES-256-GCM
+## 19. Backup base de données — Local + AES-256-GCM
 
 ### Solution retenue
 
-- **Stockage** : Google Drive via API (Service Account Google)
+- **Stockage** : fichier local chiffré (répertoire configurable via `BACKUP_LOCAL_DIR`)
 - **Chiffrement** : AES-256-GCM (module `crypto` natif Node.js) — le backup n'est JAMAIS stocké en clair
+- **Format** : `pg_dump → gzip → AES-256-GCM encrypt → .sql.gz.enc`
 - **Fréquence** : hebdomadaire (dimanche 02h00, scheduler node-cron)
 - **Retry** : automatique quotidien si échec, jusqu'à 3 tentatives consécutives
-- **Env dev** : compte Google Drive dédié dev (Service Account JSON dans .env)
-- **Env prod** : compte Google Drive créé pour le client, livré avec la V1
 - **Clé de chiffrement** : variable `BACKUP_ENCRYPTION_KEY` dans .env (32 bytes hex, `openssl rand -hex 32`)
-- **Restauration** : automatique via l'application (déchiffrement intégré AES-256-GCM)
-- **Historisation** : table `BackupLog` dans Prisma
+- **Restauration** : `decrypt → gunzip → psql` via CLI testBackup.ts
+- **Historisation** : table `BackupLog` dans Prisma (enum `BackupStatus`: SUCCESS, FAILED, IN_PROGRESS)
 - **Dashboard** : widget admin affichant statut + historique 10 dernières backups + bouton backup manuelle
+- **Rétention** : fonction `deleteOldBackups(retentionDays)` disponible
 
-### Variables d'environnement (à ajouter dans `.env.example`)
+### Fichiers
+
+- `backend/src/lib/encryption.ts` — encrypt/decrypt AES-256-GCM (IV 16 bytes + AuthTag 16 bytes + data)
+- `backend/src/lib/googleDrive.ts` — stockage local (malgré le nom, héritage refacto — fonctions sync)
+- `backend/src/services/backupService.ts` — `runBackup()` + `restoreBackup()`
+- `backend/src/scheduler/index.ts` — cron hebdomadaire + retry quotidien
+- `backend/src/scripts/testBackup.ts` — CLI manuelle (encrypt-test, backup, restore, status)
+
+### Variables d'environnement
 
 ```bash
 BACKUP_ENCRYPTION_KEY=        # 32 bytes hex — openssl rand -hex 32
-GOOGLE_DRIVE_CLIENT_EMAIL=    # email du Service Account Google
-GOOGLE_DRIVE_PRIVATE_KEY=     # clé privée du Service Account (JSON)
-GOOGLE_DRIVE_FOLDER_ID=       # ID du dossier Google Drive destination
+BACKUP_LOCAL_DIR=/var/backups/fleetmanager  # répertoire de stockage (défaut si absent)
 ```
 
 ### Pourquoi pas les alternatives
@@ -1148,8 +1236,7 @@ GOOGLE_DRIVE_FOLDER_ID=       # ID du dossier Google Drive destination
 | Alternative | Raison du rejet |
 |-------------|----------------|
 | Backblaze B2 | Données hors territoire national algérien |
-| Stockage local client | Dépendance infrastructure client non maîtrisée |
-| Google Drive | Gratuit (free tier 15 Go largement suffisant), API fiable, données dans compte appartenant au client |
+| Google Drive API | Quota Service Account limité sur Google Drive personnel — reporté V2 (nécessite Google Workspace) |
 
 ---
 
@@ -1186,5 +1273,5 @@ Table `AuditLog` à ajouter au schema Prisma dès Sprint 2.
 
 ---
 
-*Dernière mise à jour : Mars 2026 — Sprint 1 terminé (v0.1.0), revue externe validée, Sprint 2 en préparation.*
+*Dernière mise à jour : Mars 2026 — Sprint 2 en cours. Implémentés : CRUD véhicules + automate d'états, module Locations LLD, export Excel, Swagger, seed guard, 33 tests.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*
