@@ -12,6 +12,7 @@ import { vehiclesRouter } from './routes/vehicles.routes';
 import { rentalsRouter } from './routes/rentals.routes';
 import { clientsRouter } from './routes/clients.routes';
 import { auditLogsRouter } from './routes/auditLogs.routes';
+import { backupRouter } from './routes/backup.routes';
 import { swaggerSpec } from './lib/swagger';
 
 const app: Express = express();
@@ -58,6 +59,7 @@ app.use('/api/v1/vehicles', vehiclesRouter);
 app.use('/api/v1/rentals', rentalsRouter);
 app.use('/api/v1/clients', clientsRouter);
 app.use('/api/v1/audit-logs', auditLogsRouter);
+app.use('/api/v1/admin/backup', backupRouter);
 
 // Error handling
 app.use(notFound);

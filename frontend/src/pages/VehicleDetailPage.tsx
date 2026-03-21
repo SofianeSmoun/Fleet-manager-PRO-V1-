@@ -227,7 +227,7 @@ function RentalsTab({ vehicleId }: { vehicleId: string }): JSX.Element {
 }
 
 function MaintenancesTab({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
-  if (!vehicle.maintenances.length) return <p className="text-[#64748B] p-4">Aucune intervention.</p>;
+  if (!vehicle.maintenances.length) return <EmptyState title="Aucune intervention enregistrée" description="Ce véhicule n'a pas encore d'intervention." />;
 
   return (
     <table className="w-full">
@@ -260,7 +260,7 @@ function MaintenancesTab({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
 }
 
 function InsuranceTab({ vehicle }: { vehicle: VehicleDetail }): JSX.Element {
-  if (!vehicle.insurances.length) return <p className="text-[#64748B] p-4">Aucune police d&apos;assurance.</p>;
+  if (!vehicle.insurances.length) return <EmptyState title="Aucune police d'assurance enregistrée" description="Ce véhicule n'a pas encore de police d'assurance." />;
 
   return (
     <table className="w-full">
