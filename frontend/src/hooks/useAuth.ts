@@ -16,14 +16,22 @@ interface UseAuthReturn {
   logout: () => void;
 }
 
+interface JwtPayload {
+  sub?: string;
+  email?: string;
+  role?: Role;
+  firstName?: string;
+  lastName?: string;
+}
+
 function decodeToken(): AuthUser | null {
   const token = getAccessToken();
   if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as Partial<AuthUser>;
-    if (!payload.role || !payload.id) return null;
+    const payload = JSON.parse(atob(token.split('.')[1] ?? '')) as JwtPayload;
+    if (!payload.role || !payload.sub) return null;
     return {
-      id: payload.id,
+      id: payload.sub,
       email: payload.email ?? '',
       firstName: payload.firstName ?? '',
       lastName: payload.lastName ?? '',
