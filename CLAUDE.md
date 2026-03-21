@@ -36,6 +36,9 @@ pnpm --filter backend run typecheck
 # Tests Vitest + Supertest (nécessite Docker postgres running)
 pnpm --filter backend run test
 
+# Tests unitaires uniquement (vehicleService + rentalService — 37 tests, pas de DB)
+pnpm --filter backend run test:unit
+
 # Un seul test par fichier
 pnpm --filter backend exec vitest run src/tests/auth.test.ts
 
@@ -143,38 +146,53 @@ pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin_fichier
 │       │   └── rental.schema.ts   ← Zod schemas locations (create, close, update, filters)
 │       ├── middleware/
 │       │   ├── auth.ts            ← authenticate (JWT verify + DB lookup) + requireRole
+│       │   ├── auditLog.ts        ← factory auditLog(entityType, action) — non-bloquant, res.on('finish')
 │       │   ├── validate.ts        ← factory Zod middleware → 422 si invalide
 │       │   ├── errorHandler.ts    ← ZodError→422, {statusCode}→code, sinon 500
 │       │   └── notFound.ts        ← 404 catch-all
 │       ├── routes/
 │       │   ├── auth.routes.ts     ← rate limit 10/min + login/refresh/logout/forgot/reset
-│       │   ├── vehicles.routes.ts ← CRUD + status + km + export Excel + history
-│       │   ├── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle)
-│       │   └── clients.routes.ts  ← GET liste paginée + GET par id
+│       │   ├── vehicles.routes.ts ← CRUD + status + km + export Excel + history + auditLog
+│       │   ├── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle) + auditLog
+│       │   ├── clients.routes.ts  ← GET liste paginée + GET par id
+│       │   ├── auditLogs.routes.ts ← GET /audit-logs (ADMIN) paginé + filtres
+│       │   └── backup.routes.ts   ← GET /admin/backup/status + POST /admin/backup/trigger (ADMIN)
 │       ├── controllers/
 │       │   ├── vehicle.controller.ts ← handlers véhicules + export Excel
 │       │   └── rental.controller.ts  ← handlers locations
 │       ├── services/
 │       │   ├── auth.service.ts    ← login, refresh, forgot, reset password
 │       │   ├── vehicleService.ts  ← CRUD + automate d'états (ALLOWED_TRANSITIONS) + Excel export
-│       │   └── rentalService.ts   ← CRUD locations + EN_RETARD dynamique + lifecycle véhicule
-│       └── tests/auth.test.ts     ← 33 tests Supertest (auth + vehicles + rentals)
+│       │   ├── rentalService.ts   ← CRUD locations + EN_RETARD dynamique + lifecycle véhicule
+│       │   └── backupService.ts   ← runBackup() pg_dump→gzip→AES-256-GCM + restoreBackup()
+│       ├── scheduler/
+│       │   └── index.ts           ← node-cron : backup hebdo dimanche 02h00 + retry quotidien
+│       └── tests/
+│           ├── auth.test.ts       ← 33 tests Supertest (auth + vehicles + rentals)
+│           └── unit/
+│               ├── vehicle.service.test.ts ← 22 tests (automate d'états)
+│               └── rental.service.test.ts  ← 15 tests (CRUD + lifecycle)
 └── frontend/
     └── src/
         ├── main.tsx               ← QueryClient (staleTime 5min) + BrowserRouter
-        ├── App.tsx                ← routes : /login, /flotte, /flotte/:id, /locations
+        ├── App.tsx                ← routes : /login, /dashboard, /flotte, /flotte/:id, /locations
         ├── lib/axios.ts           ← instance Axios + intercepteur auto-refresh JWT
+        ├── lib/auth-token.ts      ← getAccessToken()/setAccessToken() — stockage mémoire
         ├── types/
         │   ├── index.ts           ← enums TypeScript miroir du schema Prisma
         │   └── rental.ts          ← Rental, RentalsResponse, RentalsFilters
         ├── hooks/
-        │   └── useRentals.ts      ← React Query hooks (useRentals, useCreateRental, useCloseRental...)
+        │   ├── useVehicles.ts     ← React Query hooks véhicules
+        │   └── useRentals.ts      ← React Query hooks locations
         ├── components/
+        │   ├── StatusBadge.tsx     ← badge coloré selon statut (design system)
+        │   ├── EmptyState.tsx      ← composant réutilisable empty state
         │   └── VehicleFormModal.tsx ← modal création/édition véhicule
         └── pages/
             ├── LoginPage.tsx      ← formulaire + 4 boutons quick-login démo
-            ├── FlottePage.tsx     ← liste véhicules + filtres + export Excel
-            ├── VehicleDetailPage.tsx ← fiche véhicule (infos, statuts, locations, historique)
+            ├── DashboardPage.tsx  ← widget backup ADMIN + placeholder futur dashboard
+            ├── FlottePage.tsx     ← liste véhicules + filtres + export Excel + empty states
+            ├── VehicleDetailPage.tsx ← fiche véhicule (5 onglets : infos, historique, locations, interventions, assurance)
             └── LocationsPage.tsx  ← liste locations + KPIs + filtres + create/close modals
 ```
 
@@ -457,6 +475,7 @@ model User {
   kmChanges          KmHistory[]
   clientReassignments VehicleClientHistory[]
   stockMovements     StockMovement[]
+  auditLogs          AuditLog[]
 }
 
 model Client {
@@ -705,6 +724,19 @@ model InsurancePolicy {
   vehicle       Vehicle         @relation(fields: [vehicleId], references: [id])
 }
 
+// Journal d'audit métier — traçabilité des actions utilisateurs
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json?
+  timestamp  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
 // Historique des alertes InApp — lu/non-lu
 model AlertLog {
   id          String    @id @default(uuid())
@@ -855,6 +887,11 @@ PATCH  /insurance-policies/:id
 
 GET    /dashboard/kpis
 GET    /dashboard/alerts
+
+GET    /audit-logs                  (ADMIN, filtres: entityType, entityId, userId, from, to)
+
+GET    /admin/backup/status         (ADMIN — lastBackup + history 10 + nextScheduled)
+POST   /admin/backup/trigger        (ADMIN — 202 Accepted, async)
 
 GET    /reports/fleet               (?format=excel)
 GET    /reports/interventions       (?format=excel&from=&to=)
@@ -1117,18 +1154,18 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 
 | Story | Description |
 |-------|-------------|
-| E2-S1 | CRUD Véhicules complet (liste, fiche, création, modification) |
-| E2-S2 | Automate d'états véhicule — vehicleService.ts centralisé (LOGIQUE ICI UNIQUEMENT) |
-| E2-S3 | Transition LOUE→HORS_SERVICE (ADMIN only, Rental→ANNULEE auto) |
-| E2-S4 | Historique statuts — StatusHistory + commentaire obligatoire |
-| E2-S5 | Module Locations LLD (CRUD Rental, statuts, dates) |
-| E2-S6 | Export Excel liste véhicules filtrée |
-| E2-S7 | Swagger (swagger-jsdoc Option A — usage dev interne) |
-| E2-S8 | Table AuditLog schema Prisma + middleware écriture automatique |
-| E2-S9 | Tests unitaires vehicleService Jest |
-| E2-S10 | Empty states UI flotte/locations |
-| E2-S11 | Widget backup dashboard admin (BackupLog statut + historique) |
-| E2-S12 | Seed bloqué NODE_ENV=production |
+| E2-S1 | ✅ CRUD Véhicules complet (liste, fiche, création, modification) |
+| E2-S2 | ✅ Automate d'états véhicule — vehicleService.ts centralisé (LOGIQUE ICI UNIQUEMENT) |
+| E2-S3 | ✅ Transition LOUE→HORS_SERVICE (ADMIN only, Rental→ANNULEE auto) |
+| E2-S4 | ✅ Historique statuts — StatusHistory + commentaire obligatoire |
+| E2-S5 | ✅ Module Locations LLD (CRUD Rental, statuts, dates) |
+| E2-S6 | ✅ Export Excel liste véhicules filtrée |
+| E2-S7 | ✅ Swagger (swagger-jsdoc Option A — usage dev interne) |
+| E2-S8 | ✅ Table AuditLog schema Prisma + middleware écriture automatique |
+| E2-S9 | ✅ Tests unitaires vehicleService + rentalService (Vitest — 37 tests) |
+| E2-S10 | ✅ Empty states UI flotte/locations/fiche véhicule |
+| E2-S11 | ✅ Widget backup dashboard admin (BackupLog statut + historique) |
+| E2-S12 | ✅ Seed bloqué NODE_ENV=production |
 
 **Infra pré-Sprint 2 (à faire avant démarrage) :**
 
@@ -1167,9 +1204,11 @@ Chaque story est terminée quand **tous** ces critères sont verts :
 
 | Type | Outil | Cibles |
 |------|-------|--------|
-| Unitaires services | Jest + ts-jest | vehicleService (transitions), stockService (mouvements), alertService (règles), rentalService (statuts) |
-| Intégration API | Supertest + Jest | auth, CRUD véhicules, workflow intervention complet, transitions états véhicule (valides ET invalides) |
+| Unitaires services | Vitest + vi.mock | vehicleService (22 tests — transitions), rentalService (15 tests — CRUD + lifecycle), stockService, alertService |
+| Intégration API | Vitest + Supertest | auth, CRUD véhicules, workflow intervention complet, transitions états véhicule (33 tests) |
 | E2E | Playwright | login → action critique → vérification résultat, scénarios métier complets (intervention, clôture, stock) |
+
+**Pattern de mock Vitest** : utiliser `vi.hoisted()` pour les variables mock (obligatoire car `vi.mock()` est hoisté au top). Voir `vehicle.service.test.ts` et `rental.service.test.ts` comme référence.
 
 ### Règles d'écriture du code (applicables dès Sprint 2)
 
@@ -1240,22 +1279,23 @@ BACKUP_LOCAL_DIR=/var/backups/fleetmanager  # répertoire de stockage (défaut s
 
 ---
 
-## 20. AuditLog métier — Sprint 2
+## 20. AuditLog métier — Sprint 2 ✅ IMPLÉMENTÉ
 
 > Suite à recommandation consultant externe validée.
 
-Table `AuditLog` à ajouter au schema Prisma dès Sprint 2.
+Table `AuditLog` dans le schema Prisma (migration `add-audit-log`).
 
-**Champs** : `id`, `userId`, `entityType`, `entityId`, `action`, `metadata` (JSON), `timestamp`
+**Champs** : `id`, `userId`, `entityType`, `entityId`, `action`, `metadata` (Json?), `timestamp`
 
-**Événements à tracer :**
-- Changement de statut véhicule
-- Création / modification / suppression véhicule
-- Mouvements de stock
-- Création / modification maintenance
-- Création / modification location
+**Middleware** : `auditLog(entityType, action)` dans `middleware/auditLog.ts` — factory déclarative appliquée dans les routes. Non-bloquant (`.catch()`). Sanitize les champs sensibles (`password`, `passwordHash`, `token`, `resetToken`).
 
-**Implémentation** : middleware Express automatique — les controllers ne doivent **PAS** appeler AuditLog directement.
+**Routes instrumentées :**
+- Vehicles : CREATE, UPDATE, DELETE, STATUS_CHANGE
+- Rentals : CREATE, UPDATE, CLOSE
+
+**Endpoint lecture** : `GET /api/v1/audit-logs` (ADMIN uniquement) — filtres : `entityType`, `entityId`, `userId`, `from`, `to` + pagination plate (même format que vehicles/rentals).
+
+**Règle critique** : les controllers ne doivent **PAS** appeler AuditLog directement — tout passe par le middleware route.
 
 ---
 
@@ -1273,5 +1313,5 @@ Table `AuditLog` à ajouter au schema Prisma dès Sprint 2.
 
 ---
 
-*Dernière mise à jour : Mars 2026 — Sprint 2 en cours. Implémentés : CRUD véhicules + automate d'états, module Locations LLD, export Excel, Swagger, seed guard, 33 tests.*
+*Dernière mise à jour : 21 Mars 2026 — Sprint 2 en cours. Implémentés : CRUD véhicules + automate d'états, module Locations LLD, export Excel, Swagger, seed guard, AuditLog middleware, backup dashboard widget, empty states UI, 37 unit tests + 33 integration tests.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*
