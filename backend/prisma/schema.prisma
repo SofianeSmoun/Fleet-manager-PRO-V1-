@@ -121,6 +121,7 @@ model User {
   kmChanges           KmHistory[]
   clientReassignments VehicleClientHistory[]
   stockMovements      StockMovement[]
+  auditLogs           AuditLog[]
 }
 
 model Client {
@@ -379,6 +380,19 @@ model BackupLog {
   errorMessage String?
   startedAt   DateTime     @default(now())
   completedAt DateTime?
+}
+
+// Journal d'audit métier — traçabilité des actions utilisateurs
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  entityType String
+  entityId   String
+  action     String
+  metadata   Json?
+  timestamp  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 // Historique des alertes InApp — lu/non-lu

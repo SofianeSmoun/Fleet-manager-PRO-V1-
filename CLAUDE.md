@@ -149,7 +149,8 @@ pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin_fichier
 │       ├── routes/
 │       │   ├── auth.routes.ts     ← rate limit 10/min + login/refresh/logout/forgot/reset
 │       │   ├── vehicles.routes.ts ← CRUD + status + km + export Excel + history
-│       │   └── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle)
+│       │   ├── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle)
+│       │   └── clients.routes.ts  ← GET liste paginée + GET par id
 │       ├── controllers/
 │       │   ├── vehicle.controller.ts ← handlers véhicules + export Excel
 │       │   └── rental.controller.ts  ← handlers locations
