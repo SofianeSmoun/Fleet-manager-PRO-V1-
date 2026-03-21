@@ -217,11 +217,21 @@ export default function FlottePage(): JSX.Element {
         {isLoading ? (
           <div className="p-8 text-center text-[#64748B]">Chargement...</div>
         ) : vehicles.length === 0 ? (
-          <EmptyState
-            title="Aucun véhicule"
-            description="Aucun véhicule ne correspond aux filtres sélectionnés."
-            action={canWrite ? { label: 'Ajouter un véhicule', onClick: () => setModalOpen(true) } : undefined}
-          />
+          filters.statut || filters.marque || filters.q ? (
+            <EmptyState
+              title="Aucun véhicule ne correspond aux filtres"
+              action={{
+                label: 'Réinitialiser les filtres',
+                onClick: () => setFilters({ page: 1, limit: 15, sortBy: 'createdAt', order: 'desc' }),
+              }}
+            />
+          ) : (
+            <EmptyState
+              title="Aucun véhicule dans la flotte"
+              description="Commencez par ajouter votre premier véhicule"
+              action={canWrite ? { label: '+ Ajouter un véhicule', onClick: () => setModalOpen(true) } : undefined}
+            />
+          )
         ) : (
           <>
             <table className="w-full">
