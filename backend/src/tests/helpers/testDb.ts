@@ -10,6 +10,7 @@ import bcrypt from 'bcrypt';
  * - 1 LECTEUR user
  * - 1 Client
  * - 3 Vehicles (DISPONIBLE)
+ * - 1 Garage
  */
 async function seedMinimal(): Promise<void> {
   const hash = await bcrypt.hash('Admin2026!', 12);
@@ -99,6 +100,22 @@ async function seedMinimal(): Promise<void> {
       },
     ],
     skipDuplicates: true,
+  });
+
+  // Garage for integration tests
+  await prisma.garage.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000020' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000020',
+      nom: 'Garage Test',
+      adresse: '1 Rue Test',
+      ville: 'Alger',
+      telephone: '+213 21 00 00 00',
+      email: 'test@garage.dz',
+      specialite: 'MECANIQUE_GENERALE',
+      statut: 'DISPONIBLE',
+    },
   });
 
   // Create initial StatusHistory for each vehicle

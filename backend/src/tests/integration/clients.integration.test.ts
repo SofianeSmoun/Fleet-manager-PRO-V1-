@@ -51,3 +51,42 @@ describe('Clients — GET /api/v1/clients/:id', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('Clients — GET /api/v1/clients/:id/detail', () => {
+  it('existing client → 200 with vehicles + activeRentals + maintenanceCosts', async () => {
+    const res = await request(app)
+      .get('/api/v1/clients/00000000-0000-0000-0000-000000000001/detail')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const body = res.body as {
+      nom: string;
+      vehicles: unknown[];
+      activeRentals: unknown[];
+      maintenanceCosts: { totalEstime: number; totalReel: number; count: number; period: string };
+    };
+    expect(body.nom).toBe('Cosider');
+    expect(Array.isArray(body.vehicles)).toBe(true);
+    expect(Array.isArray(body.activeRentals)).toBe(true);
+    expect(body.maintenanceCosts).toHaveProperty('totalEstime');
+    expect(body.maintenanceCosts).toHaveProperty('period', 'year');
+  });
+
+  it('with period=month filter → 200', async () => {
+    const res = await request(app)
+      .get('/api/v1/clients/00000000-0000-0000-0000-000000000001/detail?period=month')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    const body = res.body as { maintenanceCosts: { period: string } };
+    expect(body.maintenanceCosts.period).toBe('month');
+  });
+
+  it('unknown id → 404', async () => {
+    const res = await request(app)
+      .get('/api/v1/clients/00000000-0000-0000-0000-999999999999/detail')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(404);
+  });
+});
