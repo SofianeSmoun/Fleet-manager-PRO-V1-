@@ -36,11 +36,14 @@ pnpm --filter backend run typecheck
 # Tests Vitest + Supertest (nécessite Docker postgres running)
 pnpm --filter backend run test
 
-# Tests unitaires uniquement (vehicleService + rentalService — 37 tests, pas de DB)
+# Tests unitaires uniquement (55 tests — vehicle, rental, garage, mechanic services — pas de DB)
 pnpm --filter backend run test:unit
 
+# Tests d'intégration (62 tests — Supertest, nécessite Docker postgres)
+pnpm --filter backend run test:integration
+
 # Un seul test par fichier
-pnpm --filter backend exec vitest run src/tests/auth.test.ts
+pnpm --filter backend exec vitest run src/tests/unit/garage.service.test.ts
 
 # Couverture
 pnpm --filter backend run test:coverage
@@ -67,6 +70,9 @@ pnpm --filter frontend run typecheck
 
 # Build production
 pnpm --filter frontend run build
+
+# Tests unitaires frontend (22 tests — Vitest + Testing Library + jsdom)
+pnpm --filter frontend run test:unit
 ```
 
 ### Monorepo (racine)
@@ -143,7 +149,8 @@ pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin_fichier
 │       │   ├── schemas.ts         ← schemas Zod partagés (login, forgotPassword, resetPassword)
 │       │   └── swagger.ts         ← swagger-jsdoc config (OpenAPI 3.0)
 │       ├── schemas/
-│       │   └── rental.schema.ts   ← Zod schemas locations (create, close, update, filters)
+│       │   ├── rental.schema.ts   ← Zod schemas locations (create, close, update, filters)
+│       │   └── garage.schema.ts   ← Zod schemas garages (create, update, filters)
 │       ├── middleware/
 │       │   ├── auth.ts            ← authenticate (JWT verify + DB lookup) + requireRole
 │       │   ├── auditLog.ts        ← factory auditLog(entityType, action) — non-bloquant, res.on('finish')
@@ -154,46 +161,87 @@ pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin_fichier
 │       │   ├── auth.routes.ts     ← rate limit 10/min + login/refresh/logout/forgot/reset
 │       │   ├── vehicles.routes.ts ← CRUD + status + km + export Excel + history + auditLog
 │       │   ├── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle) + auditLog
-│       │   ├── clients.routes.ts  ← GET liste paginée + GET par id
+│       │   ├── clients.routes.ts  ← GET liste paginée + GET par id + GET /:id/detail
+│       │   ├── garages.routes.ts  ← CRUD garages (ADMIN/GESTIONNAIRE write) + auditLog
+│       │   ├── mechanics.routes.ts ← GET liste mécaniciens avec workload (interventions actives)
 │       │   ├── auditLogs.routes.ts ← GET /audit-logs (ADMIN) paginé + filtres
 │       │   └── backup.routes.ts   ← GET /admin/backup/status + POST /admin/backup/trigger (ADMIN)
 │       ├── controllers/
 │       │   ├── vehicle.controller.ts ← handlers véhicules + export Excel
-│       │   └── rental.controller.ts  ← handlers locations
+│       │   ├── rental.controller.ts  ← handlers locations
+│       │   ├── garage.controller.ts  ← handlers garages CRUD
+│       │   └── mechanic.controller.ts ← handlers mécaniciens workload
 │       ├── services/
 │       │   ├── auth.service.ts    ← login, refresh, forgot, reset password
 │       │   ├── vehicleService.ts  ← CRUD + automate d'états (ALLOWED_TRANSITIONS) + Excel export
 │       │   ├── rentalService.ts   ← CRUD locations + EN_RETARD dynamique + lifecycle véhicule
+│       │   ├── garageService.ts   ← CRUD garages + softDelete bloqué si maintenances actives
+│       │   ├── mechanicService.ts ← garages enrichis avec workload (interventions actives par garage)
 │       │   └── backupService.ts   ← runBackup() pg_dump→gzip→AES-256-GCM + restoreBackup()
 │       ├── scheduler/
 │       │   └── index.ts           ← node-cron : backup hebdo dimanche 02h00 + retry quotidien
 │       └── tests/
-│           ├── auth.test.ts       ← 33 tests Supertest (auth + vehicles + rentals)
-│           └── unit/
-│               ├── vehicle.service.test.ts ← 22 tests (automate d'états)
-│               └── rental.service.test.ts  ← 15 tests (CRUD + lifecycle)
+│           ├── auth.test.ts       ← tests legacy Supertest
+│           ├── helpers/
+│           │   ├── testDb.ts      ← seed minimal + loginAs() pour tests intégration
+│           │   └── testServer.ts  ← export app sans démarrer le serveur HTTP
+│           ├── unit/              ← 55 tests (vi.mock Prisma, pas de DB)
+│           │   ├── vehicle.service.test.ts ← 22 tests (automate d'états)
+│           │   ├── rental.service.test.ts  ← 15 tests (CRUD + lifecycle)
+│           │   ├── garage.service.test.ts  ← 12 tests (CRUD + softDelete)
+│           │   └── mechanic.service.test.ts ← 6 tests (workload + filtres)
+│           └── integration/       ← 62 tests (Supertest + DB réelle)
+│               ├── auth.integration.test.ts
+│               ├── vehicles.integration.test.ts
+│               ├── rentals.integration.test.ts
+│               ├── clients.integration.test.ts
+│               ├── garages.integration.test.ts
+│               └── mechanics.integration.test.ts
 └── frontend/
     └── src/
         ├── main.tsx               ← QueryClient (staleTime 5min) + BrowserRouter
-        ├── App.tsx                ← routes : /login, /dashboard, /flotte, /flotte/:id, /locations
+        ├── App.tsx                ← routes : /login, /dashboard, /flotte, /flotte/:id, /locations,
+        │                            /clients, /clients/:id, /garages, /mecaniciens
         ├── lib/axios.ts           ← instance Axios + intercepteur auto-refresh JWT
         ├── lib/auth-token.ts      ← getAccessToken()/setAccessToken() — stockage mémoire
         ├── types/
-        │   ├── index.ts           ← enums TypeScript miroir du schema Prisma
-        │   └── rental.ts          ← Rental, RentalsResponse, RentalsFilters
+        │   ├── index.ts           ← enums TypeScript miroir du schema Prisma (Role, VehicleStatus, Specialty…)
+        │   ├── vehicle.ts         ← Vehicle, VehicleFilters
+        │   ├── rental.ts          ← Rental, RentalsResponse, RentalsFilters
+        │   ├── client.ts          ← Client, ClientDetail, ClientVehicle, MaintenanceCosts
+        │   └── garage.ts          ← Garage, GarageFilters, MechanicWithWorkload
         ├── hooks/
+        │   ├── useAuth.ts         ← decode JWT (payload.sub) → AuthUser | null + logout
         │   ├── useVehicles.ts     ← React Query hooks véhicules
-        │   └── useRentals.ts      ← React Query hooks locations
+        │   ├── useRentals.ts      ← React Query hooks locations
+        │   ├── useClients.ts      ← useClients (paginé) + useClientDetail (véhicules, locations, coûts)
+        │   └── useGarages.ts      ← useGarages, useCreateGarage, useUpdateGarage, useSoftDeleteGarage, useMechanics
         ├── components/
-        │   ├── StatusBadge.tsx     ← badge coloré selon statut (design system)
+        │   ├── StatusBadge.tsx     ← badge coloré selon statut (design system — inclut OCCUPE, INDISPONIBLE)
         │   ├── EmptyState.tsx      ← composant réutilisable empty state
-        │   └── VehicleFormModal.tsx ← modal création/édition véhicule
-        └── pages/
-            ├── LoginPage.tsx      ← formulaire + 4 boutons quick-login démo
-            ├── DashboardPage.tsx  ← widget backup ADMIN + placeholder futur dashboard
-            ├── FlottePage.tsx     ← liste véhicules + filtres + export Excel + empty states
-            ├── VehicleDetailPage.tsx ← fiche véhicule (5 onglets : infos, historique, locations, interventions, assurance)
-            └── LocationsPage.tsx  ← liste locations + KPIs + filtres + create/close modals
+        │   ├── VehicleFormModal.tsx ← modal création/édition véhicule
+        │   └── layout/
+        │       ├── AppLayout.tsx   ← shell authentifié (Sidebar + Outlet)
+        │       ├── Sidebar.tsx     ← navigation latérale avec icônes par module + rôle
+        │       └── RoleGuard.tsx   ← wrapper Route : redirige vers AccessDeniedPage si rôle insuffisant
+        ├── pages/
+        │   ├── LoginPage.tsx      ← formulaire + 4 boutons quick-login démo
+        │   ├── DashboardPage.tsx  ← widget backup ADMIN + placeholder futur dashboard
+        │   ├── FlottePage.tsx     ← liste véhicules + filtres + export Excel + empty states
+        │   ├── VehicleDetailPage.tsx ← fiche véhicule (5 onglets : infos, historique, locations, interventions, assurance)
+        │   ├── LocationsPage.tsx  ← liste locations + KPIs + filtres + create/close modals
+        │   ├── ClientsPage.tsx    ← grille 2 colonnes cartes clients (bordure couleur) + empty state
+        │   ├── ClientDetailPage.tsx ← fiche client : coordonnées, véhicules, locations actives, coûts maintenance
+        │   ├── GaragesPage.tsx    ← tableau paginé + filtres + modals CRUD + RBAC (write ADMIN/GESTIONNAIRE)
+        │   ├── MecaniciensPage.tsx ← grille 3 colonnes cartes mécaniciens + workload interventions
+        │   ├── AccessDeniedPage.tsx ← page 403 si rôle insuffisant
+        │   └── PlaceholderPage.tsx ← placeholder modules non implémentés
+        └── tests/
+            ├── setup.ts           ← configuration Vitest (jsdom, @testing-library/jest-dom)
+            └── unit/              ← 22 tests frontend
+                ├── sidebar.test.tsx   ← 8 tests navigation + rôles
+                ├── clients.test.tsx   ← 5 tests cartes clients + empty state
+                └── mechanics.test.tsx ← 9 tests cartes mécaniciens + badges + workload
 ```
 
 ### Flux d'authentification
@@ -1313,5 +1361,5 @@ Table `AuditLog` dans le schema Prisma (migration `add-audit-log`).
 
 ---
 
-*Dernière mise à jour : 21 Mars 2026 — Sprint 2 en cours. Implémentés : CRUD véhicules + automate d'états, module Locations LLD, export Excel, Swagger, seed guard, AuditLog middleware, backup dashboard widget, empty states UI, 37 unit tests + 33 integration tests.*
+*Dernière mise à jour : 21 Mars 2026 — Sprint 3 en cours. Implémentés : CRUD véhicules + automate d'états, module Locations LLD, export Excel, Swagger, seed guard, AuditLog middleware, backup dashboard widget, empty states UI, module Clients (liste + fiche détail), CRUD Garages, Mécaniciens avec workload, Sidebar + RoleGuard + AppLayout. Tests : 55 unit backend + 62 integration backend + 22 unit frontend.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*
