@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
 import { validate } from '../middleware/validate';
+import { auditLog } from '../middleware/auditLog';
 import { createRentalSchema, updateRentalSchema, closeRentalSchema } from '../schemas/rental.schema';
 import {
   getRentals,
@@ -125,6 +126,7 @@ router.post(
   '/',
   requireRole(Role.ADMIN, Role.GESTIONNAIRE),
   validate(createRentalSchema),
+  auditLog('Rental', 'CREATE'),
   (req, res, next) => {
     void createRental(req, res, next);
   },
@@ -156,6 +158,7 @@ router.patch(
   '/:id',
   requireRole(Role.ADMIN, Role.GESTIONNAIRE),
   validate(updateRentalSchema),
+  auditLog('Rental', 'UPDATE'),
   (req, res, next) => {
     void updateRental(req, res, next);
   },
@@ -202,6 +205,7 @@ router.patch(
   '/:id/close',
   requireRole(Role.ADMIN, Role.GESTIONNAIRE),
   validate(closeRentalSchema),
+  auditLog('Rental', 'CLOSE'),
   (req, res, next) => {
     void closeRental(req, res, next);
   },

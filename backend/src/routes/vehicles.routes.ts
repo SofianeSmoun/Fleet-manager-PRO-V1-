@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { authenticate } from '../middleware/auth';
 import { requireRole } from '../middleware/auth';
 import { validate } from '../middleware/validate';
+import { auditLog } from '../middleware/auditLog';
 import { createVehicleSchema, updateVehicleSchema, changeStatusSchema } from '../schemas/vehicle.schema';
 import {
   getVehicles,
@@ -196,6 +197,7 @@ router.patch(
   '/:id/status',
   requireRole(Role.ADMIN, Role.GESTIONNAIRE),
   validate(changeStatusSchema),
+  auditLog('Vehicle', 'STATUS_CHANGE'),
   (req, res, next) => {
     void changeVehicleStatus(req, res, next);
   },
@@ -250,6 +252,7 @@ router.post(
   '/',
   requireRole(Role.ADMIN, Role.GESTIONNAIRE),
   validate(createVehicleSchema),
+  auditLog('Vehicle', 'CREATE'),
   (req, res, next) => {
     void createVehicle(req, res, next);
   },
@@ -300,6 +303,7 @@ router.patch(
   '/:id',
   requireRole(Role.ADMIN, Role.GESTIONNAIRE),
   validate(updateVehicleSchema),
+  auditLog('Vehicle', 'UPDATE'),
   (req, res, next) => {
     void updateVehicle(req, res, next);
   },
@@ -327,7 +331,7 @@ router.patch(
  *       404:
  *         description: Véhicule introuvable
  */
-router.delete('/:id', requireRole(Role.ADMIN), (req, res, next) => {
+router.delete('/:id', requireRole(Role.ADMIN), auditLog('Vehicle', 'DELETE'), (req, res, next) => {
   void softDeleteVehicle(req, res, next);
 });
 
