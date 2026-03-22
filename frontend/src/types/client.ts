@@ -5,6 +5,7 @@ export interface Client {
   nom: string;
   secteur: string;
   adresse: string | null;
+  wilaya: string | null;
   contactNom: string;
   contactEmail: string;
   contactTel: string;
@@ -12,6 +13,17 @@ export interface Client {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  _count?: { vehicles: number } | undefined;
+}
+
+export interface ClientFilters {
+  wilaya?: string | undefined;
+  secteur?: string | undefined;
+  q?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+  sortBy?: string | undefined;
+  order?: 'asc' | 'desc' | undefined;
 }
 
 export interface ClientVehicle {
@@ -29,7 +41,7 @@ export interface ClientRental {
   id: string;
   vehicleId: string;
   dateDebut: string;
-  dateFinPrevue: string;
+  dateFinPrevue: string | null;
   statut: RentalStatus;
   montantMensuel: number | null;
   vehicle: { immatriculation: string; marque: string; modele: string };

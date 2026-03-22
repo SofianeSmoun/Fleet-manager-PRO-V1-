@@ -195,7 +195,7 @@ export default function ClientDetailPage(): JSX.Element {
                       {new Date(r.dateDebut).toLocaleDateString('fr-FR')}
                     </td>
                     <td className="px-4 py-2.5">
-                      {new Date(r.dateFinPrevue).toLocaleDateString('fr-FR')}
+                      {r.dateFinPrevue ? new Date(r.dateFinPrevue).toLocaleDateString('fr-FR') : '—'}
                     </td>
                     <td className="px-4 py-2.5 font-['IBM_Plex_Mono']">
                       {r.montantMensuel ? formatDA(r.montantMensuel) : '—'}
