@@ -46,7 +46,7 @@ export interface Rental {
   vehicleId: string;
   clientId: string;
   dateDebut: string;
-  dateFinPrevue: string;
+  dateFinPrevue: string | null;
   dateFinReelle?: string;
   statut: RentalStatus;
   montantMensuel?: number;
