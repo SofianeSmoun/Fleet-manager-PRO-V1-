@@ -25,7 +25,11 @@
       "core-js",
       "esbuild",
       "prisma"
-    ]
+    ],
+    "overrides": {
+      "tar": ">=7.5.11",
+      "flatted": ">=3.4.2"
+    }
   },
   "engines": {
     "node": ">=20.0.0",
