@@ -5,13 +5,16 @@ export const createRentalSchema = z
     vehicleId: z.string().uuid(),
     clientId: z.string().uuid(),
     dateDebut: z.string().datetime(),
-    dateFinPrevue: z.string().datetime(),
+    dateFinPrevue: z.string().datetime().optional(),
     notes: z.string().optional(),
   })
-  .refine((data) => new Date(data.dateFinPrevue) > new Date(data.dateDebut), {
-    message: 'La date de fin prévue doit être postérieure à la date de début',
-    path: ['dateFinPrevue'],
-  });
+  .refine(
+    (data) => !data.dateFinPrevue || new Date(data.dateFinPrevue) > new Date(data.dateDebut),
+    {
+      message: 'La date de fin prévue doit être postérieure à la date de début',
+      path: ['dateFinPrevue'],
+    },
+  );
 export type CreateRentalInput = z.infer<typeof createRentalSchema>;
 
 export const closeRentalSchema = z.object({
@@ -22,7 +25,7 @@ export const closeRentalSchema = z.object({
 export type CloseRentalInput = z.infer<typeof closeRentalSchema>;
 
 export const updateRentalSchema = z.object({
-  dateFinPrevue: z.string().datetime().optional(),
+  dateFinPrevue: z.string().datetime().nullable().optional(),
   notes: z.string().optional(),
 });
 export type UpdateRentalInput = z.infer<typeof updateRentalSchema>;

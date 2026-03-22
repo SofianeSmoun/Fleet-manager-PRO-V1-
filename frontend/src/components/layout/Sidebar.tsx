@@ -43,16 +43,10 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Clients', path: '/clients', icon: '🏢', allowedRoles: ALL_ROLES },
       {
-        label: 'Mécaniciens',
-        path: '/mecaniciens',
-        icon: '🔧',
-        allowedRoles: ['ADMIN', 'GESTIONNAIRE', 'LECTEUR'],
-      },
-      {
         label: 'Garages',
         path: '/garages',
         icon: '🏭',
-        allowedRoles: ['ADMIN', 'GESTIONNAIRE'],
+        allowedRoles: ['ADMIN', 'GESTIONNAIRE', 'LECTEUR'],
       },
     ],
   },

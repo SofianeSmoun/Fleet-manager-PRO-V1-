@@ -9,7 +9,6 @@ import LocationsPage from './pages/LocationsPage';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import GaragesPage from './pages/GaragesPage';
-import MecaniciensPage from './pages/MecaniciensPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 
 export default function App(): JSX.Element {
@@ -31,13 +30,8 @@ export default function App(): JSX.Element {
           <Route path="/flotte" element={<FlottePage />} />
           <Route path="/flotte/:id" element={<VehicleDetailPage />} />
           <Route path="/locations" element={<LocationsPage />} />
-          <Route path="/mecaniciens" element={<MecaniciensPage />} />
-          <Route path="/stock" element={<PlaceholderPage title="Stock" sprint="Sprint 5-6" />} />
-        </Route>
-
-        {/* ADMIN + GESTIONNAIRE */}
-        <Route element={<RoleGuard allowed={['ADMIN', 'GESTIONNAIRE']} />}>
           <Route path="/garages" element={<GaragesPage />} />
+          <Route path="/stock" element={<PlaceholderPage title="Stock" sprint="Sprint 5-6" />} />
         </Route>
 
         {/* ADMIN + COMMERCIAL */}
