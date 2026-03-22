@@ -244,12 +244,15 @@ export default function FlottePage(): JSX.Element {
                     Marque Modèle{sortIndicator('marque')}
                   </th>
                   <th className="px-4 py-3 text-left">Client</th>
+                  <th className="px-4 py-3 text-left">Wilaya</th>
                   <th className="px-4 py-3 text-left cursor-pointer" onClick={() => handleSort('annee')}>
                     Année{sortIndicator('annee')}
                   </th>
                   <th className="px-4 py-3 text-right cursor-pointer" onClick={() => handleSort('km')}>
                     Km{sortIndicator('km')}
                   </th>
+                  <th className="px-4 py-3 text-left">Location</th>
+                  <th className="px-4 py-3 text-left">Maintenance</th>
                   <th className="px-4 py-3 text-left cursor-pointer" onClick={() => handleSort('statut')}>
                     Statut{sortIndicator('statut')}
                   </th>
@@ -282,8 +285,28 @@ export default function FlottePage(): JSX.Element {
                         {v.client.nom}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-[#64748B]">{v.client.wilaya ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-[#1A2332]">{v.annee}</td>
                     <td className="px-4 py-3 text-sm text-right text-[#1A2332]">{formatKm(v.km)}</td>
+                    <td className="px-4 py-3 text-xs text-[#64748B]">
+                      {v.rentals && v.rentals.length > 0 ? (
+                        <span>
+                          {new Date(v.rentals[0].dateDebut).toLocaleDateString('fr-FR')}
+                          {' — '}
+                          {v.rentals[0].dateFinPrevue
+                            ? new Date(v.rentals[0].dateFinPrevue).toLocaleDateString('fr-FR')
+                            : 'Ouvert'}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {v.maintenances && v.maintenances.length > 0 ? (
+                        <span className="text-[#B45309]">
+                          {/* TODO FIX-04: popup détail maintenance (Sprint 4) */}
+                          {v.maintenances[0].nature}
+                        </span>
+                      ) : '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={v.statut} />
                     </td>

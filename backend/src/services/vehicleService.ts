@@ -96,13 +96,8 @@ export async function changeVehicleStatus(
   });
 }
 
-export async function getVehicles(filters: VehicleFilters): Promise<{
-  data: Prisma.VehicleGetPayload<{ include: { client: { select: { nom: true; couleur: true } } } }>[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}> {
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export async function getVehicles(filters: VehicleFilters) {
   const where: Prisma.VehicleWhereInput = { deletedAt: null };
 
   if (filters.statut) where.statut = filters.statut;
@@ -125,7 +120,21 @@ export async function getVehicles(filters: VehicleFilters): Promise<{
   const [data, total] = await Promise.all([
     prisma.vehicle.findMany({
       where,
-      include: { client: { select: { nom: true, couleur: true } } },
+      include: {
+        client: { select: { nom: true, couleur: true, wilaya: true } },
+        rentals: {
+          where: { statut: 'EN_COURS' },
+          select: { dateDebut: true, dateFinPrevue: true },
+          take: 1,
+          orderBy: { dateDebut: 'desc' },
+        },
+        maintenances: {
+          where: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } },
+          select: { nature: true, statut: true },
+          take: 1,
+          orderBy: { dateEntree: 'desc' },
+        },
+      },
       orderBy,
       skip,
       take: filters.limit,

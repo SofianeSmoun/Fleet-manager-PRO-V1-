@@ -29,7 +29,9 @@ export interface Vehicle {
   clientId: string;
   createdAt: string;
   updatedAt: string;
-  client: { nom: string; couleur: string };
+  client: { nom: string; couleur: string; wilaya?: string | null | undefined };
+  rentals?: { dateDebut: string; dateFinPrevue: string | null }[] | undefined;
+  maintenances?: { nature: string; statut: string }[] | undefined;
 }
 
 export interface VehicleDetail extends Vehicle {
