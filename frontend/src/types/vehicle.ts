@@ -77,6 +77,7 @@ export interface InsurancePolicy {
   compagnie: string;
   numeroPolice: string;
   typeCouverture: string;
+  adresseAgence?: string | null | undefined;
   dateDebut: string;
   dateEcheance: string;
   primeMontant: number;
