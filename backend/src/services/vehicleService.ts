@@ -103,6 +103,17 @@ export async function getVehicles(filters: VehicleFilters) {
   if (filters.statut) where.statut = filters.statut;
   if (filters.clientId) where.clientId = filters.clientId;
   if (filters.marque) where.marque = filters.marque;
+  if (filters.wilaya) where.client = { wilaya: filters.wilaya };
+  if (filters.maintenance === 'OUI') {
+    where.maintenances = { some: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } } };
+  } else if (filters.maintenance === 'NON') {
+    where.maintenances = { none: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } } };
+  }
+  if (filters.from || filters.to) {
+    where.createdAt = {};
+    if (filters.from) where.createdAt.gte = new Date(filters.from);
+    if (filters.to) where.createdAt.lte = new Date(filters.to);
+  }
   if (filters.q) {
     where.OR = [
       { immatriculation: { contains: filters.q, mode: 'insensitive' } },

@@ -99,6 +99,10 @@ export interface VehicleFilters {
   statut?: VehicleStatus | undefined;
   clientId?: string | undefined;
   marque?: string | undefined;
+  wilaya?: string | undefined;
+  maintenance?: 'OUI' | 'NON' | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
   q?: string | undefined;
   page?: number | undefined;
   limit?: number | undefined;

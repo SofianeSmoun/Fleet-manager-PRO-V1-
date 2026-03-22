@@ -203,6 +203,46 @@ export default function FlottePage(): JSX.Element {
           <option value="Renault">Renault</option>
         </select>
 
+        <select
+          className="px-3 py-2 border border-[#E2E6ED] rounded-md text-sm bg-white"
+          value={filters.wilaya ?? ''}
+          onChange={(e) => setFilters((f) => ({ ...f, wilaya: e.target.value || undefined, page: 1 }))}
+        >
+          <option value="">Toutes les wilayas</option>
+          <option value="Alger">Alger</option>
+          <option value="Oran">Oran</option>
+          <option value="Constantine">Constantine</option>
+          <option value="Annaba">Annaba</option>
+          <option value="Blida">Blida</option>
+          <option value="Ouargla">Ouargla</option>
+          <option value="Hassi Messaoud">Hassi Messaoud</option>
+        </select>
+
+        <select
+          className="px-3 py-2 border border-[#E2E6ED] rounded-md text-sm bg-white"
+          value={filters.maintenance ?? ''}
+          onChange={(e) => setFilters((f) => ({ ...f, maintenance: (e.target.value || undefined) as 'OUI' | 'NON' | undefined, page: 1 }))}
+        >
+          <option value="">Maintenance (tous)</option>
+          <option value="OUI">En maintenance</option>
+          <option value="NON">Sans maintenance</option>
+        </select>
+
+        <input
+          type="date"
+          className="px-3 py-2 border border-[#E2E6ED] rounded-md text-sm bg-white"
+          value={filters.from ? filters.from.slice(0, 10) : ''}
+          onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value ? new Date(e.target.value).toISOString() : undefined, page: 1 }))}
+          title="Période du"
+        />
+        <input
+          type="date"
+          className="px-3 py-2 border border-[#E2E6ED] rounded-md text-sm bg-white"
+          value={filters.to ? filters.to.slice(0, 10) : ''}
+          onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value ? new Date(e.target.value).toISOString() : undefined, page: 1 }))}
+          title="Période au"
+        />
+
         <input
           type="text"
           placeholder="Rechercher..."
@@ -217,7 +257,7 @@ export default function FlottePage(): JSX.Element {
         {isLoading ? (
           <div className="p-8 text-center text-[#64748B]">Chargement...</div>
         ) : vehicles.length === 0 ? (
-          filters.statut || filters.marque || filters.q ? (
+          filters.statut || filters.marque || filters.q || filters.wilaya || filters.maintenance || filters.from || filters.to ? (
             <EmptyState
               title="Aucun véhicule ne correspond aux filtres"
               action={{
