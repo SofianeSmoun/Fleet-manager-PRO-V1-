@@ -1,1365 +1,375 @@
-# CLAUDE.md
+# CLAUDE.md — FleetManager Pro V1
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
----
-
-# FleetManager Pro V1 — Contexte projet complet
-> Référence : FMP-CDC-001 | Backlog : FMP-BKL-001 | Repo : https://github.com/SofianeSmoun/Fleet-manager-PRO-V1-.git
+> Référence : FMP-CDC-001 | Repo : github.com/SofianeSmoun/Fleet-manager-PRO-V1- | Jira : fleetmanagerpro.atlassian.net
 
 ---
 
-## Commands
+## État du projet
 
-> ⚠️ **WSL obligatoire** : toutes les commandes Node/pnpm doivent être exécutées via WSL avec le PATH nvm explicite.
-> Template : `wsl bash -c "export PATH='/home/sofiane/.nvm/versions/node/v20.20.1/bin:$PATH' && cd /home/sofiane/Fleet-manager-PRO-V1- && <cmd>"`
+**Version :** v0.3.0 (tag v0.3.0) · **Branche active :** `develop` · **Avancement :** ~40% V1 · **Tests :** 139 ✅ (55 unit backend + 62 intégration + 22 unit frontend)
+
+| Sprint | Statut |
+|--------|--------|
+| S1 — Infra & Auth | ✅ v0.1.0 |
+| S2 — Flotte & Locations | ✅ v0.2.0 |
+| S3 — Sidebar, Clients, Garages, Mécaniciens | ✅ v0.3.0 |
+| FIX — Corrections workshop 22 mars | 🔴 PRIORITÉ IMMÉDIATE |
+| S4 → S8 — Interventions, Stock, Dashboard, Alertes, Finalisation | 🆕 À VENIR |
+
+### Prochaines actions (dans l'ordre)
+
+1. Résoudre les 6 vulnérabilités Dependabot (5 high, 1 moderate)
+2. `git merge main` dans `develop`
+3. Corrections FIX-01 à FIX-07 (voir DTF_FleetManager_Pro.docx §3)
+4. Sprint 4 : module Interventions & Maintenance
+
+---
+
+## Commandes
+
+> ⚠️ **WSL obligatoire** : `wsl bash -c "export PATH='/home/sofiane/.nvm/versions/node/v20.20.1/bin:$PATH' && cd /home/sofiane/Fleet-manager-PRO-V1- && <cmd>"`
 
 ### Infrastructure
 
 ```bash
-# Démarrer PostgreSQL (Docker)
 docker compose up -d postgres
-
-# Vérifier que le container est healthy
 docker ps --format '{{.Names}} {{.Status}}'
 ```
 
 ### Backend (`backend/`)
 
 ```bash
-# Développement (hot-reload)
-pnpm --filter backend run dev          # port 3000
-
-# TypeScript check (OBLIGATOIRE avant commit)
-pnpm --filter backend run typecheck
-
-# Tests Vitest + Supertest (nécessite Docker postgres running)
-pnpm --filter backend run test
-
-# Tests unitaires uniquement (55 tests — vehicle, rental, garage, mechanic services — pas de DB)
-pnpm --filter backend run test:unit
-
-# Tests d'intégration (62 tests — Supertest, nécessite Docker postgres)
-pnpm --filter backend run test:integration
-
-# Un seul test par fichier
-pnpm --filter backend exec vitest run src/tests/unit/garage.service.test.ts
-
-# Couverture
+pnpm --filter backend run dev                    # port 3000
+pnpm --filter backend run typecheck              # OBLIGATOIRE avant commit
+pnpm --filter backend run test:unit              # 55 tests (pas de DB)
+pnpm --filter backend run test:integration       # 62 tests (nécessite Docker postgres)
+pnpm --filter backend run test                   # tous les tests
+pnpm --filter backend exec vitest run src/tests/unit/<fichier>.test.ts  # un seul fichier
 pnpm --filter backend run test:coverage
-
-# Migrations Prisma
 pnpm --filter backend exec npx prisma migrate dev --name <nom>
-pnpm --filter backend exec npx prisma migrate deploy   # production
-
-# Seed base de données (~3.6s)
-pnpm --filter backend run db:seed
-
-# Prisma Studio (UI base de données)
+pnpm --filter backend run db:seed                # ~3.6s
 pnpm --filter backend run db:studio
 ```
 
 ### Frontend (`frontend/`)
 
 ```bash
-# Développement (hot-reload)
-pnpm --filter frontend run dev         # port 8080
-
-# TypeScript check
+pnpm --filter frontend run dev                   # port 8080
 pnpm --filter frontend run typecheck
-
-# Build production
 pnpm --filter frontend run build
-
-# Tests unitaires frontend (22 tests — Vitest + Testing Library + jsdom)
-pnpm --filter frontend run test:unit
+pnpm --filter frontend run test:unit             # 22 tests
 ```
 
 ### Monorepo (racine)
 
 ```bash
-# Lint tous les packages
-pnpm run lint
-
-# Typecheck tous les packages
-pnpm run typecheck
-
-# Install toutes les dépendances
-pnpm install
-
-# Formatter (Prettier — 100 chars, single quotes, trailing commas all, LF)
-pnpm run format           # applique
-pnpm run format:check     # vérifie sans modifier
-
-# Dev frontend + backend en parallèle (hot-reload)
-pnpm run dev
+pnpm run lint && pnpm run typecheck              # validation complète
+pnpm run dev                                      # frontend + backend en parallèle
+pnpm run format                                   # Prettier (100 chars, single quotes, trailing commas all, LF)
 ```
 
-### Backup (`backend/`)
+### Backup
 
 ```bash
-# Test chiffrement AES-256-GCM round-trip
 pnpm --filter backend exec tsx src/scripts/testBackup.ts encrypt-test
-
-# Backup manuel (nécessite BACKUP_ENCRYPTION_KEY dans .env)
-BACKUP_LOCAL_DIR=./backups pnpm --filter backend exec tsx src/scripts/testBackup.ts backup
-
-# Historique des 10 derniers backups
+pnpm --filter backend exec tsx src/scripts/testBackup.ts backup
 pnpm --filter backend exec tsx src/scripts/testBackup.ts status
-
-# Restauration depuis un fichier chiffré local
-pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin_fichier.enc>
+pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin.enc>
 ```
 
-### Ports & Services
+### Ports
 
 | Service | Port | Note |
 |---------|------|------|
-| Frontend dev (Vite) | 8080 | Proxy `/api/*` → localhost:3000 |
-| Backend dev (Express) | 3000 | |
+| Frontend (Vite) | 8080 | Proxy `/api/*` → localhost:3000 |
+| Backend (Express) | 3000 | |
 | PostgreSQL | 5432 | Container `fleetmanager_postgres` |
-| Nginx (prod) | 80/443 | Reverse proxy + SPA serving |
 
-### Engines requises
-
-- Node.js >= 20.0.0
-- pnpm >= 9.0.0
+**Engines :** Node.js ≥ 20, pnpm ≥ 9
 
 ---
 
 ## Architecture
 
-### Monorepo pnpm workspaces
-
 ```
 /
 ├── backend/
 │   ├── prisma/
-│   │   ├── schema.prisma          ← source de vérité absolue de la DB
-│   │   ├── migrations/            ← historique SQL (commité dans git)
+│   │   ├── schema.prisma          ← SOURCE DE VÉRITÉ DB (17 entités)
+│   │   ├── migrations/
 │   │   ├── seed.ts                ← 4 users · 4 clients · 120 véhicules · 6 garages · 10 pièces · 120 polices
-│   │   │                            ⚠️ Guard NODE_ENV=production → process.exit(1)
-│   │   └── create-admin.ts        ← script idempotent création admin (ADMIN_EMAIL/ADMIN_PASSWORD)
+│   │   └── create-admin.ts        ← script idempotent admin (ADMIN_EMAIL/ADMIN_PASSWORD)
 │   └── src/
-│       ├── index.ts               ← Express app + montage routes (export default app pour tests)
-│       │                            Swagger UI monté à /api/docs (dev only)
-│       ├── lib/
-│       │   ├── prisma.ts          ← singleton PrismaClient
-│       │   ├── logger.ts          ← Winston + DailyRotateFile (JSON structuré)
-│       │   ├── schemas.ts         ← schemas Zod partagés (login, forgotPassword, resetPassword)
-│       │   └── swagger.ts         ← swagger-jsdoc config (OpenAPI 3.0)
-│       ├── schemas/
-│       │   ├── rental.schema.ts   ← Zod schemas locations (create, close, update, filters)
-│       │   └── garage.schema.ts   ← Zod schemas garages (create, update, filters)
-│       ├── middleware/
-│       │   ├── auth.ts            ← authenticate (JWT verify + DB lookup) + requireRole
-│       │   ├── auditLog.ts        ← factory auditLog(entityType, action) — non-bloquant, res.on('finish')
-│       │   ├── validate.ts        ← factory Zod middleware → 422 si invalide
-│       │   ├── errorHandler.ts    ← ZodError→422, {statusCode}→code, sinon 500
-│       │   └── notFound.ts        ← 404 catch-all
-│       ├── routes/
-│       │   ├── auth.routes.ts     ← rate limit 10/min + login/refresh/logout/forgot/reset
-│       │   ├── vehicles.routes.ts ← CRUD + status + km + export Excel + history + auditLog
-│       │   ├── rentals.routes.ts  ← CRUD + close (Vehicle↔Rental lifecycle) + auditLog
-│       │   ├── clients.routes.ts  ← GET liste paginée + GET par id + GET /:id/detail
-│       │   ├── garages.routes.ts  ← CRUD garages (ADMIN/GESTIONNAIRE write) + auditLog
-│       │   ├── mechanics.routes.ts ← GET liste mécaniciens avec workload (interventions actives)
-│       │   ├── auditLogs.routes.ts ← GET /audit-logs (ADMIN) paginé + filtres
-│       │   └── backup.routes.ts   ← GET /admin/backup/status + POST /admin/backup/trigger (ADMIN)
-│       ├── controllers/
-│       │   ├── vehicle.controller.ts ← handlers véhicules + export Excel
-│       │   ├── rental.controller.ts  ← handlers locations
-│       │   ├── garage.controller.ts  ← handlers garages CRUD
-│       │   └── mechanic.controller.ts ← handlers mécaniciens workload
-│       ├── services/
-│       │   ├── auth.service.ts    ← login, refresh, forgot, reset password
-│       │   ├── vehicleService.ts  ← CRUD + automate d'états (ALLOWED_TRANSITIONS) + Excel export
-│       │   ├── rentalService.ts   ← CRUD locations + EN_RETARD dynamique + lifecycle véhicule
-│       │   ├── garageService.ts   ← CRUD garages + softDelete bloqué si maintenances actives
-│       │   ├── mechanicService.ts ← garages enrichis avec workload (interventions actives par garage)
-│       │   └── backupService.ts   ← runBackup() pg_dump→gzip→AES-256-GCM + restoreBackup()
-│       ├── scheduler/
-│       │   └── index.ts           ← node-cron : backup hebdo dimanche 02h00 + retry quotidien
+│       ├── index.ts               ← Express app (Swagger à /api/docs en dev)
+│       ├── lib/                   ← prisma.ts, logger.ts, schemas.ts, swagger.ts, encryption.ts
+│       ├── schemas/               ← Zod (rental, garage)
+│       ├── middleware/            ← auth.ts, auditLog.ts, validate.ts, errorHandler.ts, notFound.ts
+│       ├── routes/                ← auth, vehicles, rentals, clients, garages, mechanics, auditLogs, backup
+│       ├── controllers/           ← orchestration HTTP uniquement (ZÉRO logique métier)
+│       ├── services/              ← TOUTE logique métier ici (vehicle, rental, garage, mechanic, auth, backup)
+│       ├── scheduler/             ← node-cron backup hebdo dimanche 02h00
 │       └── tests/
-│           ├── auth.test.ts       ← tests legacy Supertest
-│           ├── helpers/
-│           │   ├── testDb.ts      ← seed minimal + loginAs() pour tests intégration
-│           │   └── testServer.ts  ← export app sans démarrer le serveur HTTP
-│           ├── unit/              ← 55 tests (vi.mock Prisma, pas de DB)
-│           │   ├── vehicle.service.test.ts ← 22 tests (automate d'états)
-│           │   ├── rental.service.test.ts  ← 15 tests (CRUD + lifecycle)
-│           │   ├── garage.service.test.ts  ← 12 tests (CRUD + softDelete)
-│           │   └── mechanic.service.test.ts ← 6 tests (workload + filtres)
-│           └── integration/       ← 62 tests (Supertest + DB réelle)
-│               ├── auth.integration.test.ts
-│               ├── vehicles.integration.test.ts
-│               ├── rentals.integration.test.ts
-│               ├── clients.integration.test.ts
-│               ├── garages.integration.test.ts
-│               └── mechanics.integration.test.ts
+│           ├── helpers/           ← testDb.ts (seed + loginAs), testServer.ts
+│           ├── unit/              ← vehicle (22), rental (15), garage (12), mechanic (6)
+│           └── integration/       ← auth (12), vehicles (17), rentals (9), clients (7), garages (5), mechanics (4), audit (3), backup (5)
 └── frontend/
     └── src/
-        ├── main.tsx               ← QueryClient (staleTime 5min) + BrowserRouter
-        ├── App.tsx                ← routes : /login, /dashboard, /flotte, /flotte/:id, /locations,
-        │                            /clients, /clients/:id, /garages, /mecaniciens
-        ├── lib/axios.ts           ← instance Axios + intercepteur auto-refresh JWT
-        ├── lib/auth-token.ts      ← getAccessToken()/setAccessToken() — stockage mémoire
-        ├── types/
-        │   ├── index.ts           ← enums TypeScript miroir du schema Prisma (Role, VehicleStatus, Specialty…)
-        │   ├── vehicle.ts         ← Vehicle, VehicleFilters
-        │   ├── rental.ts          ← Rental, RentalsResponse, RentalsFilters
-        │   ├── client.ts          ← Client, ClientDetail, ClientVehicle, MaintenanceCosts
-        │   └── garage.ts          ← Garage, GarageFilters, MechanicWithWorkload
-        ├── hooks/
-        │   ├── useAuth.ts         ← decode JWT (payload.sub) → AuthUser | null + logout
-        │   ├── useVehicles.ts     ← React Query hooks véhicules
-        │   ├── useRentals.ts      ← React Query hooks locations
-        │   ├── useClients.ts      ← useClients (paginé) + useClientDetail (véhicules, locations, coûts)
-        │   └── useGarages.ts      ← useGarages, useCreateGarage, useUpdateGarage, useSoftDeleteGarage, useMechanics
-        ├── components/
-        │   ├── StatusBadge.tsx     ← badge coloré selon statut (design system — inclut OCCUPE, INDISPONIBLE)
-        │   ├── EmptyState.tsx      ← composant réutilisable empty state
-        │   ├── VehicleFormModal.tsx ← modal création/édition véhicule
-        │   └── layout/
-        │       ├── AppLayout.tsx   ← shell authentifié (Sidebar + Outlet)
-        │       ├── Sidebar.tsx     ← navigation latérale avec icônes par module + rôle
-        │       └── RoleGuard.tsx   ← wrapper Route : redirige vers AccessDeniedPage si rôle insuffisant
-        ├── pages/
-        │   ├── LoginPage.tsx      ← formulaire + 4 boutons quick-login démo
-        │   ├── DashboardPage.tsx  ← widget backup ADMIN + placeholder futur dashboard
-        │   ├── FlottePage.tsx     ← liste véhicules + filtres + export Excel + empty states
-        │   ├── VehicleDetailPage.tsx ← fiche véhicule (5 onglets : infos, historique, locations, interventions, assurance)
-        │   ├── LocationsPage.tsx  ← liste locations + KPIs + filtres + create/close modals
-        │   ├── ClientsPage.tsx    ← grille 2 colonnes cartes clients (bordure couleur) + empty state
-        │   ├── ClientDetailPage.tsx ← fiche client : coordonnées, véhicules, locations actives, coûts maintenance
-        │   ├── GaragesPage.tsx    ← tableau paginé + filtres + modals CRUD + RBAC (write ADMIN/GESTIONNAIRE)
-        │   ├── MecaniciensPage.tsx ← grille 3 colonnes cartes mécaniciens + workload interventions
-        │   ├── AccessDeniedPage.tsx ← page 403 si rôle insuffisant
-        │   └── PlaceholderPage.tsx ← placeholder modules non implémentés
-        └── tests/
-            ├── setup.ts           ← configuration Vitest (jsdom, @testing-library/jest-dom)
-            └── unit/              ← 22 tests frontend
-                ├── sidebar.test.tsx   ← 8 tests navigation + rôles
-                ├── clients.test.tsx   ← 5 tests cartes clients + empty state
-                └── mechanics.test.tsx ← 9 tests cartes mécaniciens + badges + workload
+        ├── lib/                   ← axios.ts (intercepteur JWT), auth-token.ts (stockage mémoire)
+        ├── types/                 ← enums miroir Prisma, Vehicle, Rental, Client, Garage
+        ├── hooks/                 ← useAuth, useVehicles, useRentals, useClients, useGarages
+        ├── components/            ← StatusBadge, EmptyState, VehicleFormModal, layout/ (AppLayout, Sidebar, RoleGuard)
+        ├── pages/                 ← Login, Dashboard, Flotte, VehicleDetail, Locations, Clients, ClientDetail, Garages, Mecaniciens, AccessDenied
+        └── tests/unit/            ← sidebar (8), clients (5), mechanics (9)
 ```
 
-### Flux d'authentification
+### Flux auth
 
 ```
-Login  → POST /api/v1/auth/login  → access_token (body) + refresh_token (httpOnly cookie, 7j)
-Refresh → POST /api/v1/auth/refresh → rotation : nouveau access_token + nouveau refresh_token
-Logout  → POST /api/v1/auth/logout  → cookie expiré
-Forgot  → POST /api/v1/auth/forgot-password → UUID token loggué (TTL 30min, pas d'email V1)
-Reset   → POST /api/v1/auth/reset-password  → bcrypt cost 12, token invalidé après usage
+Login  → POST /auth/login  → access_token (body) + refresh_token (httpOnly cookie 7j)
+Refresh → POST /auth/refresh → rotation tokens
+Logout  → POST /auth/logout  → cookie expiré
+Reset   → token UUID TTL 30min (loggé, pas d'email V1)
 ```
 
-Le `access_token` est stocké **en mémoire** côté frontend (`getAccessToken()`/`setAccessToken()` dans `LoginPage.tsx`). L'intercepteur Axios tente un refresh automatique sur 401.
+### Middleware Express : `helmet → cors → rateLimit → cookieParser → json → swagger (dev) → routes → errorHandler → notFound`
 
-### Middleware chain Express
+### Base de données
 
-```
-helmet → cors → rateLimit → cookieParser → json → swagger (dev only) → routes → errorHandler → notFound
-```
-
-### Swagger (dev only)
-
-- URL : `http://localhost:3000/api/docs` (UI) / `/api/docs.json` (spec)
-- Annotations : JSDoc `@swagger` dans chaque fichier routes
-- Monté **avant** notFound handler (sinon 404)
-- Import **statique** de `swagger-ui-express` (ESLint interdit `require()` et dynamic import cause race condition)
-
-### Base de données — connexion
-
-- Container Docker : `fleetmanager_postgres` (port 5432)
-- Credentials : `fleetmanager:fleetmanager_dev` (DB: `fleetmanager`)
-- `DATABASE_URL` dans `backend/.env` : `postgresql://fleetmanager:fleetmanager_dev@localhost:5432/fleetmanager`
-
-### Points de vigilance
-
-- **`exactOptionalPropertyTypes: true`** dans tsconfig — impact majeur sur tout le code :
-  - Headers Supertest : `res.headers['set-cookie']` doit être typé via `unknown` puis narrowé, jamais casté en `string[]`.
-  - **Prisma updates** : ne jamais passer `field: value | undefined` directement. Construire un payload explicite :
-    ```typescript
-    const updateData: Prisma.XUpdateInput = {};
-    if (data.field !== undefined) updateData.field = data.field;
-    ```
-  - **Interfaces frontend** : les props optionnelles doivent avoir `| undefined` explicite : `value?: string | undefined`.
-- **`StringValue` de `ms`** requis pour `jwt.sign({ expiresIn })` — cast obligatoire depuis `string`.
-- Le schema Prisma est la **source de vérité** — toujours migrer avant de coder la logique métier.
-- Les erreurs métier utilisent `Object.assign(new Error('msg'), { statusCode: 4xx })` — capturé par `errorHandler`.
-- **ESLint strict** : `max-warnings 0`, `no-explicit-any: error`, `explicit-function-return-type: warn`, `no-console` autorise uniquement `warn`/`error`. Les fonctions async sans `await` sont interdites (`require-await`).
-- **Prettier** : 100 chars, single quotes, trailing commas `all`, LF (Unix). Config dans `.prettierrc`.
-- **Backend = CommonJS** (`type: "commonjs"`), **Frontend = ES modules**.
-- **Frontend path alias** : `@/*` → `src/*` (configuré dans vite.config.ts + tsconfig).
-- **Docker healthcheck** : postgres utilise `pg_isready` (10s interval, 5 retries). Le backend attend que postgres soit healthy.
+- Container : `fleetmanager_postgres` · Credentials : `fleetmanager:fleetmanager_dev` · DB : `fleetmanager`
+- `DATABASE_URL=postgresql://fleetmanager:fleetmanager_dev@localhost:5432/fleetmanager`
 
 ---
 
-## 0. Règle d'or
+## Points de vigilance TypeScript
 
-**Ne jamais push directement sur `main` ou `develop`.** Toujours travailler sur une branche `feature/xxx`, ouvrir une PR vers `develop`, merger après validation. Chaque session de travail commence par `git pull origin develop` et crée une nouvelle branche feature.
-
----
-
-## 1. Contexte métier
-
-**Commanditaire :** PME algérienne de location de véhicules utilitaires légers (LLD) pour entreprises industrielles.
-
-**Problème résolu :** Remplace des Google Sheets, fichiers Excel et carnets papier par une application web centralisée.
-
-**Périmètre V1 :** 120 véhicules · 4 clients industriels (Cosider, Sonatrach, Sonelgaz, Agrodiv) · 1 à 3 utilisateurs simultanés maximum.
-
-**Modules V1 :**
-- M1 Dashboard & KPIs
-- M2 Gestion de la flotte (véhicules)
-- M3 Gestion des clients
-- M4 Interventions & Maintenance
-- M5 Garages prestataires (ex-Mécaniciens dans le CDC)
-- M6 Stock de pièces détachées
-- M7 Assurances
-- M8 Alertes InApp
-- M9 Rapports & Exports
-- M10 Paramètres
-- M11 Gestion des Locations ← **ajout vs CDC, cœur métier**
-
-**Hors scope V1 :** Alertes email/SMS, application mobile native, intégration comptabilité, graphiques BI avancés.
+- **`exactOptionalPropertyTypes: true`** — Impact majeur :
+  - Headers Supertest : typer via `unknown` puis narrower, jamais caster en `string[]`
+  - Prisma updates : construire payload explicite (`if (data.field !== undefined) updateData.field = data.field`)
+  - Props frontend optionnelles : `value?: string | undefined`
+- **`StringValue` de `ms`** requis pour `jwt.sign({ expiresIn })` — cast depuis `string`
+- Erreurs métier : `Object.assign(new Error('msg'), { statusCode: 4xx })` → capturé par `errorHandler`
+- **ESLint strict** : `max-warnings 0`, `no-explicit-any: error`, `no-console` autorise uniquement `warn/error`
+- **Backend = CommonJS**, **Frontend = ES modules** avec alias `@/*` → `src/*`
+- **Pattern mock Vitest** : `vi.hoisted()` pour variables mock (car `vi.mock()` est hoisté). Ref : `vehicle.service.test.ts`
 
 ---
 
-## 2. Stack technique
+## Règles métier critiques
 
-| Couche | Technologie | Version | Note |
-|--------|-------------|---------|------|
-| Frontend framework | React | 18 | |
-| Frontend langage | TypeScript | strict mode | noImplicitAny, strictNullChecks |
-| Frontend bundler | Vite | latest | |
-| UI components | shadcn/ui + TailwindCSS | latest | |
-| État serveur | TanStack Query (React Query) | v5 | cache 5min dashboard |
-| Routing | React Router | v6 | |
-| Formulaires | react-hook-form + Zod | latest | validation front ET back |
-| HTTP client | Axios | latest | |
-| Backend runtime | Node.js | 20 LTS | |
-| Backend framework | Express | 4 | |
-| Backend langage | TypeScript | strict mode | |
-| ORM | Prisma | 5.x | schéma = source de vérité |
-| Base de données | PostgreSQL | 16 | |
-| Auth | JWT HS256 | — | access 1h + refresh 7j httpOnly cookie |
-| Hachage mdp | bcrypt | cost factor 12 | |
-| Export Excel | ExcelJS | latest | côté serveur |
-| Export PDF | jsPDF | latest | **côté navigateur** — zéro charge VPS |
-| Logs | Winston + daily-rotate-file | latest | logs JSON structurés |
-| Package manager | **pnpm** | latest | workspaces monorepo |
-| Conteneurisation | Docker Compose | — | 3 services : nginx, backend, postgres |
-| Reverse proxy | Nginx | alpine | SSL termination + SPA serving |
-| Process manager | PM2 | latest | dans le container backend |
-| CI/CD | GitHub Actions | — | push develop → staging, push main → prod |
+### Automate d'états véhicule
 
-> ⚠️ **Puppeteer et Nodemailer sont EXCLUS du scope V1.** PDF = jsPDF navigateur. Alertes = InApp uniquement.
+> Centralisé dans `vehicleService.ts` UNIQUEMENT. Toute transition non listée → HTTP 400.
+
+```
+DISPONIBLE  → LOUE         (création Rental)
+DISPONIBLE  → MAINTENANCE  (création Maintenance)
+DISPONIBLE  → HORS_SERVICE (ADMIN only)
+LOUE        → DISPONIBLE   (clôture Rental)
+LOUE        → MAINTENANCE  (urgence)
+LOUE        → HORS_SERVICE (ADMIN only → Rental ANNULEE)
+MAINTENANCE → DISPONIBLE   (clôture étape 4)
+MAINTENANCE → HORS_SERVICE (post-maintenance)
+HORS_SERVICE → DISPONIBLE  (ADMIN only)
+```
+
+Chaque transition → `StatusHistory` avec `reason` obligatoire (422 si vide).
+
+### Workflow intervention (4 étapes)
+
+| Étape | Action | Effets |
+|-------|--------|--------|
+| ① Création | Véhicule + garage + types travaux + dates | Vehicle → MAINTENANCE, statut EN_ATTENTE |
+| ② Pièces | Sélection catalogue + quantités | MaintenancePart créés (pas de déduction stock) |
+| ③ Démarrage | Confirmation gestionnaire | → EN_COURS, StockMovement SORTIE, StockEntry.quantite-- |
+| ④ Clôture | Date réelle + coût réel + rapport (obligatoire) | → TERMINEE, Vehicle → DISPONIBLE |
+
+**EN_RETARD** = calculé dynamiquement (`dateSortiePrevue < now()` ET statut EN_ATTENTE/EN_COURS), jamais stocké en DB.
+
+### Soft delete
+
+`deletedAt DateTime?` sur toutes les entités. Filtre par défaut `WHERE deletedAt IS NULL`. Blocages : Client (si véhicule actif), Garage (si maintenance active), SparePart (si stock > 0).
 
 ---
 
-## 3. Structure du monorepo
-
-```
-/                               ← racine du repo
-├── CLAUDE.md                   ← CE fichier (contexte global)
-├── docker-compose.yml          ← orchestration multi-conteneurs
-├── docker-compose.staging.yml  ← surcharge pour staging
-├── .env.example                ← template variables d'environnement
-├── .github/
-│   └── workflows/
-│       ├── ci.yml              ← lint + typecheck sur chaque PR
-│       └── deploy.yml          ← deploy staging (develop) + prod (main)
-├── frontend/
-│   ├── CLAUDE.md               ← contexte spécifique frontend (pointe ici)
-│   ├── src/
-│   │   ├── components/         ← composants réutilisables (Badge, Modal, Table...)
-│   │   ├── pages/              ← une page par module
-│   │   ├── hooks/              ← custom hooks React Query (useVehicles, useStock...)
-│   │   ├── types/              ← types TypeScript partagés frontend
-│   │   ├── lib/                ← utils, axios instance, zod schemas
-│   │   └── store/              ← état global auth (zustand ou context)
-│   ├── package.json
-│   └── vite.config.ts
-├── backend/
-│   ├── CLAUDE.md               ← contexte spécifique backend (pointe ici)
-│   ├── src/
-│   │   ├── routes/             ← définition endpoints REST par module
-│   │   ├── controllers/        ← logique traitement requêtes HTTP
-│   │   ├── services/           ← logique métier (vehicleService, stockService...)
-│   │   ├── middleware/         ← auth JWT, RBAC, validation Zod, erreurs, logs
-│   │   └── lib/                ← prisma client singleton, winston config
-│   ├── prisma/
-│   │   ├── schema.prisma       ← schéma DB — source de vérité absolue
-│   │   ├── migrations/         ← historique migrations SQL auto-générées
-│   │   └── seed.ts             ← données de démo (120 véhicules, 4 clients...)
-│   └── package.json
-└── docker/
-    ├── Dockerfile.frontend
-    ├── Dockerfile.backend
-    └── nginx.conf
-```
-
----
-
-## 4. Schéma Prisma complet
-
-> Ce schéma est la **source de vérité**. Toujours mettre à jour `schema.prisma` avant d'écrire du code métier.
-
-```prisma
-// backend/prisma/schema.prisma
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-// ─── ENUMS ────────────────────────────────────────────────────────────────────
-
-enum Role {
-  ADMIN
-  GESTIONNAIRE
-  COMMERCIAL
-  LECTEUR
-}
-
-enum VehicleStatus {
-  DISPONIBLE
-  LOUE
-  MAINTENANCE
-  HORS_SERVICE
-}
-
-enum Fuel {
-  DIESEL
-  ESSENCE
-  GPL
-}
-
-enum RentalStatus {
-  EN_COURS
-  TERMINEE
-  EN_RETARD
-  ANNULEE
-}
-
-enum MaintenanceType {
-  CORRECTIVE
-  PREVENTIVE
-  ACCIDENTELLE
-}
-
-enum MaintenanceStatus {
-  EN_ATTENTE
-  EN_COURS
-  TERMINEE
-  EN_RETARD
-}
-
-enum GarageStatus {
-  DISPONIBLE
-  OCCUPE
-  INDISPONIBLE
-}
-
-enum Specialty {
-  MECANIQUE_GENERALE
-  ELECTRICITE_AUTO
-  CARROSSERIE
-  PNEUMATIQUES_FREINS
-  MOTEUR_TRANSMISSION
-}
-
-enum StockMovementType {
-  ENTREE
-  SORTIE
-  TRANSFERT
-}
-
-enum StockLocationType {
-  ENTREPOT
-  GARAGE
-}
-
-enum SparePartCategory {
-  LUBRIFIANTS
-  FREINAGE
-  FILTRATION
-  MOTEUR
-  TRANSMISSION
-  SUSPENSION
-  ELECTRICITE
-  CARROSSERIE
-  AUTRE
-}
-
-enum InsuranceStatus {
-  ACTIVE
-  EXPIRANT_BIENTOT
-  EXPIREE
-}
-
-// ─── ENTITÉS ──────────────────────────────────────────────────────────────────
-
-model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  role         Role      @default(LECTEUR)
-  isActive     Boolean   @default(true)
-  deletedAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  // Relations
-  statusChanges      StatusHistory[]
-  kmChanges          KmHistory[]
-  clientReassignments VehicleClientHistory[]
-  stockMovements     StockMovement[]
-  auditLogs          AuditLog[]
-}
-
-model Client {
-  id          String    @id @default(uuid())
-  nom         String
-  secteur     String
-  adresse     String?
-  contactNom  String
-  contactEmail String
-  contactTel  String
-  couleur     String    // hex color pour UI ex: "#1D6FA4"
-  notes       String?
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relations
-  vehicles    Vehicle[]
-  rentals     Rental[]
-  vehicleHistory VehicleClientHistory[]
-}
-
-model Vehicle {
-  id             String        @id @default(uuid())
-  immatriculation String       @unique // format: WW·NNNN·ALG ex: 16·2341·ALG
-  vin            String?       @unique
-  marque         String        // Fiat | Volkswagen | Renault
-  modele         String
-  annee          Int
-  km             Int
-  statut         VehicleStatus @default(DISPONIBLE)
-  carburant      Fuel          @default(DIESEL)
-  couleur        String?
-  notes          String?
-  clientId       String
-  deletedAt      DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  // Relations
-  client         Client        @relation(fields: [clientId], references: [id])
-  rentals        Rental[]
-  maintenances   Maintenance[]
-  insurances     InsurancePolicy[]
-  statusHistory  StatusHistory[]
-  kmHistory      KmHistory[]
-  clientHistory  VehicleClientHistory[]
-}
-
-// Log horodaté de chaque changement de statut d'un véhicule
-model StatusHistory {
-  id          String   @id @default(uuid())
-  vehicleId   String
-  fromStatus  String
-  toStatus    String
-  reason      String   // commentaire obligatoire
-  changedById String
-  changedAt   DateTime @default(now())
-
-  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id])
-  changedBy   User     @relation(fields: [changedById], references: [id])
-}
-
-// Historique des mises à jour kilométrage
-model KmHistory {
-  id          String   @id @default(uuid())
-  vehicleId   String
-  kmAvant     Int
-  kmApres     Int
-  changedById String
-  changedAt   DateTime @default(now())
-
-  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id])
-  changedBy   User     @relation(fields: [changedById], references: [id])
-}
-
-// Historique des réaffectations de véhicule entre clients
-model VehicleClientHistory {
-  id             String   @id @default(uuid())
-  vehicleId      String
-  fromClientId   String?
-  toClientId     String
-  reason         String?
-  changedById    String
-  changedAt      DateTime @default(now())
-
-  vehicle        Vehicle  @relation(fields: [vehicleId], references: [id])
-  toClient       Client   @relation(fields: [toClientId], references: [id])
-  changedBy      User     @relation(fields: [changedById], references: [id])
-}
-
-model Rental {
-  id              String       @id @default(uuid())
-  vehicleId       String
-  clientId        String
-  dateDebut       DateTime
-  dateFinPrevue   DateTime
-  dateFinReelle   DateTime?
-  statut          RentalStatus @default(EN_COURS)
-  montantMensuel  Float?       // en DA
-  devise          String       @default("DA")
-  notes           String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  vehicle         Vehicle      @relation(fields: [vehicleId], references: [id])
-  client          Client       @relation(fields: [clientId], references: [id])
-}
-
-// Garage prestataire externe (renommé depuis Mechanic — PAS de mécanicien interne)
-model Garage {
-  id         String       @id @default(uuid())
-  nom        String       // nom de la société prestataire
-  adresse    String
-  ville      String
-  telephone  String
-  email      String?
-  specialite Specialty?
-  statut     GarageStatus @default(DISPONIBLE)
-  notes      String?
-  deletedAt  DateTime?
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-
-  // Relations
-  maintenances  Maintenance[]
-  stockLocations StockLocation[]
-}
-
-model Maintenance {
-  id               String            @id @default(uuid())
-  vehicleId        String
-  garageId         String
-  type             MaintenanceType
-  nature           String            // texte libre
-  dateEntree       DateTime
-  dateSortiePrevue DateTime
-  dateSortieReelle DateTime?
-  statut           MaintenanceStatus @default(EN_ATTENTE)
-  coutEstime       Float?
-  coutReel         Float?
-  rapport          String?           // obligatoire à la clôture (étape 4)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-
-  // Relations
-  vehicle          Vehicle           @relation(fields: [vehicleId], references: [id])
-  garage           Garage            @relation(fields: [garageId], references: [id])
-  parts            MaintenancePart[]
-  stockMovements   StockMovement[]
-}
-
-model SparePart {
-  id             String            @id @default(uuid())
-  reference      String            @unique
-  designation    String
-  categorie      SparePartCategory
-  unite          String            // ex: Litre, Pièce, Kit, Jeu
-  prixUnitaire   Float
-  seuilAlerte    Int               // email/alerte quand qte <= seuilAlerte
-  seuilCritique  Int               // alerte critique quand qte <= seuilCritique
-  notes          String?
-  deletedAt      DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-
-  // Relations
-  stockEntries   StockEntry[]
-  movements      StockMovement[]
-  maintenanceParts MaintenancePart[]
-}
-
-model StockLocation {
-  id       String            @id @default(uuid())
-  nom      String            // ex: Entrepôt Central, Garage Belcourt
-  type     StockLocationType
-  garageId String?           // si type=GARAGE
-  adresse  String?
-
-  garage   Garage?           @relation(fields: [garageId], references: [id])
-  entries  StockEntry[]
-  movementsFrom StockMovement[] @relation("FromLocation")
-  movementsTo   StockMovement[] @relation("ToLocation")
-}
-
-// Quantité d'une pièce dans un emplacement donné
-model StockEntry {
-  id          String       @id @default(uuid())
-  sparePartId String
-  locationId  String
-  quantite    Int          @default(0)
-  updatedAt   DateTime     @updatedAt
-
-  sparePart   SparePart    @relation(fields: [sparePartId], references: [id])
-  location    StockLocation @relation(fields: [locationId], references: [id])
-
-  @@unique([sparePartId, locationId])
-}
-
-// Historique tracé de chaque mouvement de stock
-model StockMovement {
-  id             String            @id @default(uuid())
-  sparePartId    String
-  fromLocationId String?
-  toLocationId   String?
-  type           StockMovementType
-  quantite       Int
-  maintenanceId  String?           // lien optionnel si sortie liée à intervention
-  operatorId     String
-  notes          String?
-  createdAt      DateTime          @default(now())
-
-  sparePart      SparePart         @relation(fields: [sparePartId], references: [id])
-  fromLocation   StockLocation?    @relation("FromLocation", fields: [fromLocationId], references: [id])
-  toLocation     StockLocation?    @relation("ToLocation", fields: [toLocationId], references: [id])
-  maintenance    Maintenance?      @relation(fields: [maintenanceId], references: [id])
-  operator       User              @relation(fields: [operatorId], references: [id])
-}
-
-// Pièces consommées dans une intervention
-model MaintenancePart {
-  id                    String      @id @default(uuid())
-  maintenanceId         String
-  sparePartId           String
-  quantite              Int
-  prixUnitaireApplique  Float       // snapshot prix au moment de l'intervention
-
-  maintenance           Maintenance @relation(fields: [maintenanceId], references: [id])
-  sparePart             SparePart   @relation(fields: [sparePartId], references: [id])
-}
-
-model InsurancePolicy {
-  id            String          @id @default(uuid())
-  vehicleId     String
-  compagnie     String
-  numeroPolice  String
-  typeCouverture String         // ex: Tous risques, Tiers
-  dateDebut     DateTime
-  dateEcheance  DateTime
-  primeMontant  Float           // DA/an
-  statut        InsuranceStatus @default(ACTIVE)
-  notes         String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-
-  vehicle       Vehicle         @relation(fields: [vehicleId], references: [id])
-}
-
-// Journal d'audit métier — traçabilité des actions utilisateurs
-model AuditLog {
-  id         String   @id @default(uuid())
-  userId     String
-  entityType String
-  entityId   String
-  action     String
-  metadata   Json?
-  timestamp  DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-// Historique des alertes InApp — lu/non-lu
-model AlertLog {
-  id          String    @id @default(uuid())
-  type        String    // INSURANCE_EXPIRY_30 | INSURANCE_EXPIRY_7 | INSURANCE_EXPIRED
-                        // RENTAL_OVERDUE | MAINTENANCE_OVERDUE | STOCK_LOW | STOCK_CRITICAL
-  entityId    String    // ID de l'entité concernée
-  entityType  String    // Vehicle | SparePart | Rental | Maintenance | InsurancePolicy
-  message     String
-  readAt      DateTime? // null = non lu, DateTime = lu
-  createdAt   DateTime  @default(now())
-}
-```
-
----
-
-## 5. Automate d'états — Règles métier CRITIQUES
-
-> ⚠️ Ces règles sont **non négociables**. Toute transition non listée retourne HTTP 400 avec message explicite. La logique est centralisée dans `vehicleService.ts` UNIQUEMENT.
-
-### 5.1 Statuts véhicule
-
-```
-DISPONIBLE → LOUE          (création Rental → side effect: Rental.statut = EN_COURS)
-DISPONIBLE → MAINTENANCE   (création Maintenance → side effect: Maintenance.statut = EN_ATTENTE)
-DISPONIBLE → HORS_SERVICE  (action manuelle ADMIN uniquement)
-LOUE       → DISPONIBLE    (clôture Rental → side effect: Rental.statut = TERMINEE)
-LOUE       → MAINTENANCE   (entrée urgente → Rental mise en pause)
-LOUE       → HORS_SERVICE  (accident grave / panne irréparable — ADMIN only, motif obligatoire → Rental.statut = ANNULEE)
-MAINTENANCE → DISPONIBLE   (clôture Maintenance étape 4 → side effect: Maintenance.statut = TERMINEE)
-MAINTENANCE → HORS_SERVICE (décision post-maintenance)
-HORS_SERVICE → DISPONIBLE  (réhabilitation ADMIN uniquement)
-```
-
-**Règle obligatoire :** Chaque transition crée un enregistrement `StatusHistory` avec `reason` (commentaire obligatoire, 422 si vide).
-
-### 5.2 Workflow intervention (4 étapes strictes)
-
-```
-Étape 1 — Création    : Vehicle → MAINTENANCE, Maintenance.statut = EN_ATTENTE
-Étape 2 — Pièces      : Ajout MaintenancePart (vérif stock AVANT, pas de déduction encore)
-Étape 3 — Démarrage   : Maintenance.statut = EN_COURS, StockMovement SORTIE créé, StockEntry.quantite--
-Étape 4 — Clôture     : rapport obligatoire, Maintenance.statut = TERMINEE, Vehicle → DISPONIBLE
-                        Garage.statut → DISPONIBLE si aucune autre intervention active
-```
-
-**Règle EN_RETARD :** Calculé dynamiquement — si `dateSortiePrevue < now()` ET `statut IN (EN_ATTENTE, EN_COURS)` → afficher EN_RETARD. Ne pas stocker en DB.
-
-### 5.3 Soft delete — Règles universelles
-
-Toutes les entités principales ont un champ `deletedAt DateTime?`.
-
-- **Filtre par défaut** : `WHERE deletedAt IS NULL` sur toutes les requêtes Prisma
-- **Accès aux supprimés** : uniquement via `?includeDeleted=true` (ADMIN only)
-- **Blocages** :
-  - Client : suppression bloquée si véhicule actif ou Rental EN_COURS → HTTP 400
-  - Garage : suppression bloquée si Maintenance EN_COURS ou EN_ATTENTE → HTTP 400
-  - SparePart : suppression bloquée si StockEntry.quantite > 0 → HTTP 400
-
-### 5.4 Alertes InApp — 7 règles
-
-| Type | Condition | Action |
-|------|-----------|--------|
-| INSURANCE_EXPIRY_30 | dateEcheance <= today + 30j | Badge orange + panel |
-| INSURANCE_EXPIRY_7 | dateEcheance <= today + 7j | Badge rouge + bandeau critique |
-| INSURANCE_EXPIRED | dateEcheance < today | Statut → EXPIREE + bandeau critique |
-| RENTAL_OVERDUE | dateFinPrevue < now() ET EN_COURS | Badge retard |
-| MAINTENANCE_OVERDUE | dateSortiePrevue < today ET EN_COURS/EN_ATTENTE | Badge retard |
-| STOCK_LOW | quantite <= seuilAlerte | Badge orange |
-| STOCK_CRITICAL | quantite <= seuilCritique | Badge rouge + bandeau critique |
-
-**Anti-doublon :** Avant de créer un AlertLog, vérifier `WHERE type = X AND entityId = Y AND createdAt > now() - 24h`. Si existe → skip.
-
-**Lu/non-lu :** Badge topbar = `COUNT(AlertLog WHERE readAt IS NULL)`. Marquer lu = `UPDATE AlertLog SET readAt = now()`.
-
----
-
-## 6. API REST — Conventions
-
-```
-Base URL : /api/v1
-Auth     : Authorization: Bearer <access_token> sur toutes les routes protégées
-Format   : JSON exclusivement
-Pagination : ?page=1&limit=15&sortBy=createdAt&order=desc
-Dates    : ISO 8601
-```
-
-### Codes HTTP à respecter
-| Code | Usage |
-|------|-------|
-| 200 | OK — lecture, mise à jour |
-| 201 | Created — création réussie |
-| 400 | Bad Request — transition invalide, règle métier violée |
-| 401 | Unauthorized — token manquant ou expiré |
-| 403 | Forbidden — rôle insuffisant |
-| 404 | Not Found |
-| 422 | Validation Error — champ manquant ou invalide (Zod) |
-| 500 | Server Error |
-
-### Endpoints principaux
-```
-POST   /auth/login
-POST   /auth/refresh
-POST   /auth/logout
-
-GET    /vehicles                    (filtre: statut, clientId, marque, q)
-GET    /vehicles/:id
-POST   /vehicles
-PATCH  /vehicles/:id
-PATCH  /vehicles/:id/status         (automate strict, reason obligatoire)
-PATCH  /vehicles/:id/km             (crée KmHistory)
-DELETE /vehicles/:id                (soft delete, ADMIN only)
-GET    /vehicles/:id/history
-
-GET    /clients
-GET    /clients/:id
-POST   /clients
-PATCH  /clients/:id
-DELETE /clients/:id
-
-GET    /rentals
-GET    /rentals/:id
-POST   /rentals                     (Vehicle → LOUE auto)
-PATCH  /rentals/:id/close           (Vehicle → DISPONIBLE auto, km retour)
-
-GET    /interventions
-GET    /interventions/:id
-POST   /interventions               (Vehicle → MAINTENANCE auto)
-PATCH  /interventions/:id/parts     (étape 2)
-PATCH  /interventions/:id/start     (étape 3 — déduction stock)
-PATCH  /interventions/:id/close     (étape 4 — rapport obligatoire)
-
-GET    /garages
-GET    /garages/:id
-POST   /garages
-PATCH  /garages/:id
-DELETE /garages/:id
-
-GET    /spare-parts
-GET    /spare-parts/:id
-POST   /spare-parts
-PATCH  /spare-parts/:id
-POST   /stock/movement              (ENTREE | SORTIE | TRANSFERT)
-GET    /stock/alerts
-
-GET    /insurance-policies
-POST   /insurance-policies
-PATCH  /insurance-policies/:id
-
-GET    /dashboard/kpis
-GET    /dashboard/alerts
-
-GET    /audit-logs                  (ADMIN, filtres: entityType, entityId, userId, from, to)
-
-GET    /admin/backup/status         (ADMIN — lastBackup + history 10 + nextScheduled)
-POST   /admin/backup/trigger        (ADMIN — 202 Accepted, async)
-
-GET    /reports/fleet               (?format=excel)
-GET    /reports/interventions       (?format=excel&from=&to=)
-GET    /reports/stock               (?format=excel)
-GET    /reports/insurance           (?format=excel)
-GET    /reports/by-client/:id       (?format=excel&from=&to=)
-```
-
----
-
-## 7. Rôles et permissions
+## Rôles & Permissions
 
 | Action | ADMIN | GESTIONNAIRE | COMMERCIAL | LECTEUR |
-|--------|-------|--------------|------------|---------|
+|--------|:-----:|:------------:|:----------:|:-------:|
 | Dashboard | ✓ | ✓ | ✓ | ✓ |
-| Flotte lecture | ✓ | ✓ | ✓ | ✓ |
-| Flotte écriture | ✓ | ✓ | ✗ | ✗ |
-| Flotte suppression | ✓ | ✗ | ✗ | ✗ |
-| Clients lecture | ✓ | ✓ | ✓ | ✓ |
-| Clients écriture | ✓ | ✓ | ✓ | ✗ |
-| Locations lecture | ✓ | ✓ | ✓ | ✓ |
-| Locations écriture | ✓ | ✓ | ✗ | ✗ |
-| Interventions lecture | ✓ | ✓ | ✗ | ✓ |
-| Interventions écriture | ✓ | ✓ | ✗ | ✗ |
-| Garages lecture | ✓ | ✓ | ✗ | ✓ |
-| Garages écriture | ✓ | ✓ | ✗ | ✗ |
-| Stock lecture | ✓ | ✓ | ✗ | ✓ |
-| Stock mouvements | ✓ | ✓ | ✗ | ✗ |
-| Assurances lecture | ✓ | ✓ | ✓ | ✓ |
-| Assurances écriture | ✓ | ✗ | ✓ | ✗ |
-| Rapports génération | ✓ | ✓ | ✓ | lecture |
-| Paramètres | ✓ | ✗ | ✗ | ✗ |
-| Utilisateurs | ✓ | ✗ | ✗ | ✗ |
+| Flotte R/W/D | ✓/✓/✓ | ✓/✓/✗ | ✓/✗/✗ | ✓/✗/✗ |
+| Clients R/W | ✓/✓ | ✓/✓ | ✓/✓ | ✓/✗ |
+| Locations R/W | ✓/✓ | ✓/✓ | ✓/✗ | ✓/✗ |
+| Interventions R/W | ✓/✓ | ✓/✓ | ✗/✗ | ✓/✗ |
+| Garages R/W | ✓/✓ | ✓/✓ | ✓/✗ | ✓/✗ |
+| Stock R/W | ✓/✓ | ✓/✓ | ✗/✗ | ✓/✗ |
+| Assurances R/W | ✓/✓ | ✓/✗ | ✓/✓ | ✓/✗ |
+| Paramètres/Users | ✓ | ✗ | ✗ | ✗ |
 
-**Implémentation :** Middleware Express `requireRole(...roles)` sur chaque route. Frontend : boutons d'action masqués (`display: none`) si rôle insuffisant — jamais juste grisés.
+Impl : middleware `requireRole(...roles)`. Frontend : boutons masqués (`display: none`), jamais grisés.
 
 ---
 
-## 8. Variables d'environnement
+## API REST — Conventions
+
+```
+Base : /api/v1 | Auth : Bearer <access_token> | Format : JSON | Pagination : ?page=1&limit=15&sortBy=createdAt&order=desc | Dates : ISO 8601
+```
+
+Codes : 200 OK · 201 Created · 400 Bad Request (transition invalide) · 401 Unauthorized · 403 Forbidden · 404 Not Found · 422 Validation (Zod) · 500 Server Error
+
+### Endpoints implémentés (v0.3.0)
+
+```
+POST   /auth/login|refresh|logout|forgot-password|reset-password
+
+GET|POST         /vehicles
+GET|PATCH|DELETE  /vehicles/:id
+PATCH             /vehicles/:id/status|km
+GET               /vehicles/:id/history
+GET               /vehicles/export/excel
+
+GET|POST         /rentals
+GET               /rentals/:id
+PATCH             /rentals/:id/close
+
+GET               /clients
+GET               /clients/:id|/:id/detail
+POST|PATCH|DELETE /clients/:id (CRUD)
+
+GET|POST         /garages
+GET|PATCH|DELETE  /garages/:id
+
+GET               /mechanics (workload)
+
+GET               /audit-logs (ADMIN)
+GET|POST          /admin/backup/status|trigger (ADMIN)
+```
+
+### Endpoints à venir (S4+)
+
+```
+POST|PATCH /interventions (workflow 4 étapes)
+GET|POST   /spare-parts + POST /stock/movement
+GET|POST|PATCH /insurance-policies
+GET        /dashboard/kpis|alerts
+GET        /reports/*
+```
+
+---
+
+## Git flow
+
+```
+main     → production (PR only, tag vX.Y.Z)
+develop  → staging (PR only)
+feature/ → une branche par ticket
+```
+
+**Commits :** `type(scope): description` — types : feat | fix | chore | test | docs | refactor | perf
+
+**Workflow :** `git checkout develop && git pull → git checkout -b feature/xxx → work → push → PR vers develop`
+
+**Règle absolue :** Ne jamais push sur `main` ou `develop` directement.
+
+---
+
+## Design system
+
+- **Thème :** Industriel / Utilitaire premium · **Fonts :** IBM Plex Sans (corps), IBM Plex Mono (immat, codes, chiffres)
+- **Couleurs clés :** navy `#0D1B2A` · blue `#1D6FA4` · green `#0E7C59` · amber `#B45309` · red `#C0392B` · bg `#F4F6F9` · text `#1A2332`
+- **Badges :** DISPONIBLE/TERMINEE/ACTIVE → vert · LOUE/EN_COURS → bleu · MAINTENANCE/EXPIRANT → amber · HORS_SERVICE/EN_ATTENTE → gris · EN_RETARD/EXPIREE → rouge
+- **UX :** Pagination 15/page · Modals pour actions destructives · Toasts 3s bas-centre · Bandeau rouge alertes critiques · Immat toujours en monospace badge gris
+
+---
+
+## Variables d'environnement
 
 ```bash
-# .env.example — copier en .env, ne jamais committer .env
-
-# Base de données
-DATABASE_URL="postgresql://user:password@localhost:5432/fleetmanager"
-
-# JWT
-JWT_SECRET="min-64-chars-generer-avec-openssl-rand-hex-32"
-JWT_REFRESH_SECRET="min-64-chars-different-de-JWT_SECRET"
+DATABASE_URL="postgresql://fleetmanager:fleetmanager_dev@localhost:5432/fleetmanager"
+JWT_SECRET="<64+ chars>"
+JWT_REFRESH_SECRET="<64+ chars, différent>"
 JWT_EXPIRES_IN="1h"
 JWT_REFRESH_EXPIRES_IN="7d"
-
-# Application
-NODE_ENV="development"       # development | production | test
+NODE_ENV="development"
 PORT="3000"
 TZ="Africa/Algiers"
-FRONTEND_URL="http://localhost:5173"   # CORS origin
-
-# Production uniquement
-# FRONTEND_URL="https://fleetmanager.example.dz"
+FRONTEND_URL="http://localhost:8080"
+BACKUP_ENCRYPTION_KEY="<32 bytes hex>"
+BACKUP_LOCAL_DIR="/var/backups/fleetmanager"
 ```
 
-> ⚠️ Nodemailer et SMTP sont **exclus du scope V1**. Ne pas ajouter de variables SMTP.
+> ⚠️ Nodemailer/SMTP exclus V1. Ne pas ajouter de variables SMTP.
 
 ---
 
-## 9. Git flow & Conventions
+## Comptes de démo (seed)
 
-### Branches
-```
-main        → production (protégée, merge via PR uniquement)
-develop     → staging (protégée, merge via PR uniquement)
-feature/xxx → travail en cours (une branche par story/épic)
-```
-
-### Convention de commits (Conventional Commits)
-```
-feat(vehicles): add status transition endpoint
-feat(auth): implement JWT refresh token rotation
-fix(stock): prevent negative quantity on SORTIE movement
-chore(infra): add docker-compose staging configuration
-test(vehicles): add unit tests for state machine
-docs(api): update vehicle endpoints documentation
-refactor(services): extract vehicle state machine to separate file
-```
-
-Format : `type(scope): description courte en minuscules`
-
-Types autorisés : `feat` | `fix` | `chore` | `test` | `docs` | `refactor` | `perf`
-
-### Versioning (Semantic Versioning)
-```
-v1.0.0  → livraison V1 complète (merge develop → main sprint 8)
-v1.0.x  → patches / corrections bugs post-livraison
-v1.x.0  → nouvelles features V2
-```
-Tags Git créés automatiquement par GitHub Actions sur chaque merge dans `main`.
-
-### Workflow par session de travail
-```bash
-git checkout develop
-git pull origin develop
-git checkout -b feature/e1-s1-monorepo-init
-# ... travail ...
-git add .
-git commit -m "feat(infra): initialize pnpm monorepo with workspaces"
-git push origin feature/e1-s1-monorepo-init
-# Ouvrir PR vers develop sur GitHub
-```
-
----
-
-## 10. Design system
-
-**Thème :** Industriel / Utilitaire premium — tons neutres, accents bleu marine.
-
-**Typographie :**
-- Corps : `IBM Plex Sans`
-- Codes/immatriculations/chiffres : `IBM Plex Mono`
-
-**Palette de couleurs :**
-```css
---navy:        #0D1B2A   /* sidebar, bannières épics */
---blue:        #1D6FA4   /* actions primaires, liens */
---blue-pale:   #EBF5FB   /* badge LOUE / EN_COURS */
---green:       #0E7C59   /* succès, DISPONIBLE, ACTIVE */
---green-pale:  #E8F6F0
---amber:       #B45309   /* avertissement, MAINTENANCE, EXPIRANT */
---amber-pale:  #FEF3C7
---red:         #C0392B   /* erreur, HORS_SERVICE, EXPIREE, EN_RETARD */
---red-pale:    #FDECEA
---background:  #F4F6F9
---surface:     #FFFFFF
---surface-2:   #F0F2F5
---border:      #E2E6ED
---text:        #1A2332
---text-muted:  #64748B
-```
-
-**Badges statuts — composant `<StatusBadge status={...} />`**
-```
-DISPONIBLE      → vert    (#E8F6F0 / #0E7C59)
-LOUE            → bleu    (#EBF5FB / #1D6FA4)
-MAINTENANCE     → amber   (#FEF3C7 / #B45309)
-HORS_SERVICE    → gris    (#F0F2F5 / #4A5568)
-EN_ATTENTE      → gris    (#F0F2F5 / #4A5568)
-EN_COURS        → bleu    (#EBF5FB / #1D6FA4)
-EN_RETARD       → rouge   (#FDECEA / #C0392B)
-TERMINEE        → vert    (#E8F6F0 / #0E7C59)
-ACTIVE          → vert    (#E8F6F0 / #0E7C59)
-EXPIRANT_BIENTOT → amber  (#FEF3C7 / #B45309)
-EXPIREE         → rouge   (#FDECEA / #C0392B)
-```
-
-**Règles UX non négociables :**
-- Immatriculations : toujours `font-family: 'IBM Plex Mono'` dans un badge `bg: #F0F2F5`
-- Tableaux longs : pagination 15 lignes/page — jamais de scroll infini
-- Actions destructives : toujours une modal de confirmation avant exécution
-- Erreurs de validation : affichées sous chaque champ en rouge, message explicite
-- Mode lecture seule : bandeau explicite si le rôle n'a pas les droits d'écriture
-- Toasts : succès vert / erreur rouge / info bleu — durée 3 secondes, position bas-centre
-- Bandeau alertes critiques : rouge, fixe en haut de page si alertes actives, cliquable
-
----
-
-## 11. Backlog résumé
-
-| Épic | Titre | Sprint | Stories | Priorité |
-|------|-------|--------|---------|----------|
-| E1 | Infra + DevOps + Auth | S1 — Sem 1 | 10 | MUST total |
-| E2 | Flotte + Locations | S2-S3 — Sem 2-3 | 14 | MUST prioritaire |
-| E3 | Clients + Garages | S4 — Sem 4 | 10 | MUST |
-| E4 | Interventions & Maintenance | S4-S5 — Sem 4-5 | 10 | MUST complexe |
-| E5 | Stock de pièces détachées | S5-S6 — Sem 5-6 | 10 | MUST |
-| E6 | Assurances + Alertes InApp | S6 — Sem 6 | 9 | MUST |
-| E7 | Dashboard + Rapports | S7-S8 — Sem 7-8 | 10 | MUST |
-
-**Total : 73 User Stories**
-
-### Comptes de démo (seed)
 ```
 admin@fleetmanager.dz        / Admin2026!   → ADMIN
-gestionnaire@fleetmanager.dz / Gest2026!   → GESTIONNAIRE
-commercial@fleetmanager.dz   / Comm2026!   → COMMERCIAL
-lecteur@fleetmanager.dz      / Read2026!   → LECTEUR
+gestionnaire@fleetmanager.dz / Gest2026!    → GESTIONNAIRE
+commercial@fleetmanager.dz   / Comm2026!    → COMMERCIAL
+lecteur@fleetmanager.dz      / Read2026!    → LECTEUR
 ```
 
----
-
-## 12. Definition of Done globale
-
-Chaque story est terminée quand **tous** ces critères sont verts :
-
-- [ ] TypeScript strict — `tsc --noEmit` sans erreur, aucun `any` implicite
-- [ ] Validation Zod front ET back sur tout formulaire/endpoint
-- [ ] Middleware RBAC : accès non autorisé retourne 403 + message explicite
-- [ ] Soft delete : entité invisible dans les listes, accessible via `?includeDeleted=true`
-- [ ] Au moins 1 test positif + 1 test négatif par endpoint (Supertest)
-- [ ] Aucune erreur console en mode production
-- [ ] Feature branch mergée via PR — jamais de push direct sur `develop` ou `main`
-- [ ] Pipeline GitHub Actions passe (lint + build) avant merge
-- [ ] Toute action destructive protégée par modal de confirmation
-- [ ] Temps de réponse API < 500ms pour les lectures en conditions normales
+Seed bloqué en `NODE_ENV=production`. Empty states obligatoires sur toutes les pages.
 
 ---
 
-## 13. Décisions d'architecture — Ce qui a été tranché et pourquoi
+## Décisions figées — Ne pas remettre en question
 
-| Décision | Choix retenu | Raison |
-|----------|-------------|--------|
-| Export PDF | jsPDF (navigateur) | Puppeteer trop lourd sur VPS 4Go RAM |
-| Alertes V1 | InApp uniquement | Éviter complexité SMTP en V1 |
-| Alertes email | Fonctionnalité premium V2 | Non incluse package V1 |
-| Mechanic | Renommé Garage | Modèle métier : uniquement prestataires externes, pas d'employés internes |
-| Module Locations | Dédié (M11) | Cœur métier LLD — absorbé dans fiche véhicule était insuffisant |
-| Soft delete | Universel | User + Vehicle + Client + Garage + SparePart |
-| Kilométrage | km + KmHistory | Traçabilité : qui a mis à jour, quand, avant/après |
-| Réaffectation client | VehicleClientHistory | Véhicule peut changer de client — historique obligatoire |
-| Package manager | pnpm | Workspaces natifs, performances, cohérence monorepo |
-| Stack | Node.js 20 + React 18 | Léger sur VPS 4Go, Claude Code optimisé pour ce stack, cohérence TS full-stack |
-| VPS staging | À définir | Agnostique — n'importe quel VPS Linux avec Docker |
-| Versioning | Semantic Versioning | Tags v1.0.0 sur merge main via GitHub Actions |
-| Backup BDD | Local + AES-256-GCM | Google Drive reporté V2 (quota Service Account) — stockage local chiffré (cf. section 19) |
-| Swagger | swagger-jsdoc (Option A) | Intégré Sprint 2, usage interne dev + livrable client futur |
-| Staging | Prod uniquement en V1 | Préprod si chantier majeur uniquement |
-| Données seed | Cosider/Sonatrach/etc. | Démo uniquement, pas des données client réelles |
-| AuditLog | Table dédiée + middleware auto | Traçabilité métier Sprint 2 (cf. section 20) |
-| BullMQ + Redis | Écarté | Over-engineering pour 7 jobs/jour — node-cron suffisant V1 |
-| Grafana + Loki | Écarté | Overkill pour 3 users — Winston + UptimeRobot suffisants V1 |
-| Backblaze B2 | Écarté | Données hors territoire national algérien |
-| Backup local client | Écarté | Dépendance infrastructure non maîtrisée |
-| Google Drive API V1 | Reporté V2 | Quota Service Account limité sur Google Drive personnel — nécessite Google Workspace |
+| Décision | Choix | Raison |
+|----------|-------|--------|
+| PDF export | jsPDF (navigateur) | VPS 4Go RAM — Puppeteer exclu |
+| Alertes V1 | InApp uniquement | Email = V2 premium |
+| Mécaniciens | Fusionner dans Garages (FIX-02) | PME = prestataires externes uniquement |
+| Backup | Local AES-256-GCM | Google Drive reporté V2 (quota Service Account) |
+| Queue | node-cron | BullMQ/Redis = over-engineering pour 7 jobs/jour |
+| Monitoring | Winston + UptimeRobot | Grafana/Loki = overkill pour 3 users |
+| Stockage externe | Exclu V1 | Backblaze B2 hors territoire algérien |
+| Tests | Vitest unifié (remplace Jest) | Backend + frontend |
+| Staging | Pas permanent | À la demande uniquement |
+| Transitions états | vehicleService.ts uniquement | Jamais dans les controllers |
+| AuditLog | Middleware déclaratif | Jamais dans les controllers |
+| Soft delete | `deletedAt` universel | Jamais suppression physique |
 
 ---
 
-## 14. Seed & Données de démonstration
+## Backup — Résumé technique
 
-- Le seed (`prisma/seed.ts`) est **UNIQUEMENT pour dev et staging**
-- En production : l'application démarre avec 0 données (0 véhicules, 0 clients, 0 pièces, 0 utilisateurs sauf le compte admin initial)
-- La commande `prisma db seed` ne doit **JAMAIS** s'exécuter en `NODE_ENV=production`
-- Vérifier que `ci.yml` et `deploy.yml` respectent cette règle
-- L'UI doit gérer les **empty states** proprement sur toutes les pages : tableaux vides, dashboard sans données, messages "Aucun élément — Ajouter le premier"
-
----
-
-## 15. Points ouverts à clarifier avec le client
-
-- Remplacement véhicule en cours de location : nouvelle location ou modification de l'existante ?
-- Ristourne financière accident : clause contractuelle existante ?
-- Validation des enrichissements BDD non facturés : KmHistory + VehicleClientHistory
-- Confirmation personas utilisateurs par rôle (noms et postes réels)
-
-**Hors périmètre V1 (à ne pas implémenter) :**
-- Gestion du véhicule de remplacement
-- Calcul de ristourne financière
+- **Format :** `pg_dump → gzip → AES-256-GCM → .sql.gz.enc`
+- **Fréquence :** Hebdo dimanche 02h00 + retry quotidien si échec
+- **Fichiers :** `encryption.ts`, `googleDrive.ts` (stockage local malgré le nom), `backupService.ts`, `scheduler/index.ts`, `testBackup.ts`
+- **Dashboard :** Widget admin (statut + historique 10 derniers + bouton manuel)
 
 ---
 
-## 16. Sprint 2 — Backlog final
+## Corrections workshop (FIX-01 à FIX-07)
 
-| Story | Description |
-|-------|-------------|
-| E2-S1 | ✅ CRUD Véhicules complet (liste, fiche, création, modification) |
-| E2-S2 | ✅ Automate d'états véhicule — vehicleService.ts centralisé (LOGIQUE ICI UNIQUEMENT) |
-| E2-S3 | ✅ Transition LOUE→HORS_SERVICE (ADMIN only, Rental→ANNULEE auto) |
-| E2-S4 | ✅ Historique statuts — StatusHistory + commentaire obligatoire |
-| E2-S5 | ✅ Module Locations LLD (CRUD Rental, statuts, dates) |
-| E2-S6 | ✅ Export Excel liste véhicules filtrée |
-| E2-S7 | ✅ Swagger (swagger-jsdoc Option A — usage dev interne) |
-| E2-S8 | ✅ Table AuditLog schema Prisma + middleware écriture automatique |
-| E2-S9 | ✅ Tests unitaires vehicleService + rentalService (Vitest — 37 tests) |
-| E2-S10 | ✅ Empty states UI flotte/locations/fiche véhicule |
-| E2-S11 | ✅ Widget backup dashboard admin (BackupLog statut + historique) |
-| E2-S12 | ✅ Seed bloqué NODE_ENV=production |
+> Détail complet dans DTF_FleetManager_Pro.docx §3 et DOC_Fonctionnelle §12
 
-**Infra pré-Sprint 2 (à faire avant démarrage) :**
-
-| Ticket | Description |
-|--------|-------------|
-| INFRA-01 | Compte Google Drive dev + Service Account + clé JSON |
-| INFRA-02 | Script backup pg_dump → gzip → AES-256-GCM → Google Drive |
-| INFRA-03 | Cron hebdomadaire dimanche 02h00 + retry automatique |
-| INFRA-04 | Table BackupLog schema Prisma + migration |
-| INFRA-05 | Test chiffrement + déchiffrement + restauration complète |
-| INFRA-06 | Document livrable client (compte Google + clé + procédure restauration) |
+| Réf | Module | Description | Priorité |
+|-----|--------|-------------|----------|
+| FIX-01 | Clients | Refonte → tableau paginé + colonnes Wilaya/Véhicules loués + bouton Ajouter + filtres | HAUTE |
+| FIX-02 | Garages | Fusion Mécaniciens dans Garages — supprimer /mecaniciens + sidebar | HAUTE |
+| FIX-03 | Flotte | Colonnes Wilaya + Date début/fin location + Maintenance | HAUTE |
+| FIX-04 | Flotte | Popup détail maintenance (type, garage, dates, pièces, lien intervention) | HAUTE |
+| FIX-05 | Flotte | Filtres Wilaya + Maintenance OUI/NON + Période | MOYENNE |
+| FIX-06 | Assurances | Champ adresse agence souscription | MOYENNE |
+| FIX-07 | Locations | Date fin optionnelle (contrat ouvert) | MOYENNE |
 
 ---
 
-## 17. Leçons apprises Sprint 1
+## Tests — Stratégie
 
-- `prisma generate` **DOIT** précéder lint et build dans la CI (sans ça : TS2305 PrismaClient/Role non trouvés)
-- Toujours vérifier 0 erreurs lint + typecheck en local avant de committer
-- La branche PR doit cibler `develop`, jamais `main` directement
+| Niveau | Outil | Périmètre |
+|--------|-------|-----------|
+| Unitaires | Vitest + vi.mock | Services métier, composants React |
+| Intégration | Vitest + Supertest | Tous endpoints API (DB test isolée) |
+| E2E (futur) | Playwright | Workflows métier complets |
 
----
-
-## 18. Tests & TNR
-
-### Stratégie générale (mise à jour revue externe Mars 2026)
-
-- **Règle** : les tests unitaires sont écrits **EN MÊME TEMPS** que le service métier, pas après
-- **Sprint 2** : tests unitaires vehicleService (automate d'états — Jest) — **OBLIGATOIRE**
-- **Sprint 3** : tests unitaires maintenanceService + stockService
-- **Sprint 4+** : tests d'intégration API (Supertest) sur les endpoints critiques
-- **Sprint 7-8** : tests E2E Playwright (optionnel V1)
-- Tout nouveau module livré doit embarquer ses tests
-- Les tests font partie de la Definition of Done à partir du Sprint 2
-
-### Stack de tests
-
-| Type | Outil | Cibles |
-|------|-------|--------|
-| Unitaires services | Vitest + vi.mock | vehicleService (22 tests — transitions), rentalService (15 tests — CRUD + lifecycle), stockService, alertService |
-| Intégration API | Vitest + Supertest | auth, CRUD véhicules, workflow intervention complet, transitions états véhicule (33 tests) |
-| E2E | Playwright | login → action critique → vérification résultat, scénarios métier complets (intervention, clôture, stock) |
-
-**Pattern de mock Vitest** : utiliser `vi.hoisted()` pour les variables mock (obligatoire car `vi.mock()` est hoisté au top). Voir `vehicle.service.test.ts` et `rental.service.test.ts` comme référence.
-
-### Règles d'écriture du code (applicables dès Sprint 2)
-
-Pour que les tests Sprint 3 soient efficaces, tout le code doit être écrit selon ces principes dès maintenant :
-
-- **Zéro logique métier dans les controllers** (controllers = orchestration uniquement)
-- **Toute logique métier dans les services** (vehicleService, rentalService, stockService...)
-- Services injectables et mockables (pas de dépendances directes à prisma dans les controllers)
-- Chaque fonction de service = une responsabilité unique
-- Les transitions d'états centralisées dans `vehicleService.ts` UNIQUEMENT (déjà en place — à maintenir)
-
-### Cibles prioritaires Jest
-
-- **vehicleService** : toutes les transitions autorisées + toutes les transitions interdites (HTTP 400)
-- **maintenanceService** : workflow 4 étapes complet
-- **stockService** : mouvements ENTREE / SORTIE / TRANSFERT
-- **authService** : login, refresh, logout, reset password
-- Chaque endpoint API : 1 test positif + 1 test négatif minimum
-
-### Intégration CI/CD (Sprint 3+)
-
-Ajouter un job `test` dans `ci.yml` :
-
-- S'exécute après lint et typecheck
-- Nécessite un service PostgreSQL (container `postgres:16`)
-- Exécute `prisma migrate deploy` + `prisma db seed` avant les tests
-- Commande : `pnpm --filter backend test`
-- Le job doit passer pour autoriser le merge de la PR
+**Règle :** Tests écrits EN MÊME TEMPS que le service. Ordre validation : ① unit ✅ → ② intégration ✅ → ③ tests manuels ✅ → ④ commit + PR.
 
 ---
 
-## 19. Backup base de données — Local + AES-256-GCM
-
-### Solution retenue
-
-- **Stockage** : fichier local chiffré (répertoire configurable via `BACKUP_LOCAL_DIR`)
-- **Chiffrement** : AES-256-GCM (module `crypto` natif Node.js) — le backup n'est JAMAIS stocké en clair
-- **Format** : `pg_dump → gzip → AES-256-GCM encrypt → .sql.gz.enc`
-- **Fréquence** : hebdomadaire (dimanche 02h00, scheduler node-cron)
-- **Retry** : automatique quotidien si échec, jusqu'à 3 tentatives consécutives
-- **Clé de chiffrement** : variable `BACKUP_ENCRYPTION_KEY` dans .env (32 bytes hex, `openssl rand -hex 32`)
-- **Restauration** : `decrypt → gunzip → psql` via CLI testBackup.ts
-- **Historisation** : table `BackupLog` dans Prisma (enum `BackupStatus`: SUCCESS, FAILED, IN_PROGRESS)
-- **Dashboard** : widget admin affichant statut + historique 10 dernières backups + bouton backup manuelle
-- **Rétention** : fonction `deleteOldBackups(retentionDays)` disponible
-
-### Fichiers
-
-- `backend/src/lib/encryption.ts` — encrypt/decrypt AES-256-GCM (IV 16 bytes + AuthTag 16 bytes + data)
-- `backend/src/lib/googleDrive.ts` — stockage local (malgré le nom, héritage refacto — fonctions sync)
-- `backend/src/services/backupService.ts` — `runBackup()` + `restoreBackup()`
-- `backend/src/scheduler/index.ts` — cron hebdomadaire + retry quotidien
-- `backend/src/scripts/testBackup.ts` — CLI manuelle (encrypt-test, backup, restore, status)
-
-### Variables d'environnement
-
-```bash
-BACKUP_ENCRYPTION_KEY=        # 32 bytes hex — openssl rand -hex 32
-BACKUP_LOCAL_DIR=/var/backups/fleetmanager  # répertoire de stockage (défaut si absent)
-```
-
-### Pourquoi pas les alternatives
-
-| Alternative | Raison du rejet |
-|-------------|----------------|
-| Backblaze B2 | Données hors territoire national algérien |
-| Google Drive API | Quota Service Account limité sur Google Drive personnel — reporté V2 (nécessite Google Workspace) |
-
----
-
-## 20. AuditLog métier — Sprint 2 ✅ IMPLÉMENTÉ
-
-> Suite à recommandation consultant externe validée.
-
-Table `AuditLog` dans le schema Prisma (migration `add-audit-log`).
-
-**Champs** : `id`, `userId`, `entityType`, `entityId`, `action`, `metadata` (Json?), `timestamp`
-
-**Middleware** : `auditLog(entityType, action)` dans `middleware/auditLog.ts` — factory déclarative appliquée dans les routes. Non-bloquant (`.catch()`). Sanitize les champs sensibles (`password`, `passwordHash`, `token`, `resetToken`).
-
-**Routes instrumentées :**
-- Vehicles : CREATE, UPDATE, DELETE, STATUS_CHANGE
-- Rentals : CREATE, UPDATE, CLOSE
-
-**Endpoint lecture** : `GET /api/v1/audit-logs` (ADMIN uniquement) — filtres : `entityType`, `entityId`, `userId`, `from`, `to` + pagination plate (même format que vehicles/rentals).
-
-**Règle critique** : les controllers ne doivent **PAS** appeler AuditLog directement — tout passe par le middleware route.
-
----
-
-## 21. Décisions écartées — à ne pas remettre en question
-
-| Technologie / Approche | Raison du rejet |
-|------------------------|----------------|
-| Puppeteer | Trop lourd pour VPS 4 Go — remplacé par jsPDF navigateur |
-| Alertes email (Nodemailer) | Fonctionnalité premium V2 — V1 = alertes visuelles in-app uniquement |
-| BullMQ + Redis | Over-engineering pour 7 jobs/jour — node-cron suffisant en V1 |
-| Grafana + Loki | Overkill pour 3 users — Winston + UptimeRobot suffisants en V1 |
-| Backblaze B2 | Données hors territoire national algérien |
-| Backup local chez client | Dépendance infrastructure non maîtrisée |
-| Staging permanent | À la demande uniquement, financé par le chantier qui le justifie |
-
----
-
-*Dernière mise à jour : 21 Mars 2026 — Sprint 3 en cours. Implémentés : CRUD véhicules + automate d'états, module Locations LLD, export Excel, Swagger, seed guard, AuditLog middleware, backup dashboard widget, empty states UI, module Clients (liste + fiche détail), CRUD Garages, Mécaniciens avec workload, Sidebar + RoleGuard + AppLayout. Tests : 55 unit backend + 62 integration backend + 22 unit frontend.*
-*Ce fichier fait autorité sur toute décision technique ou fonctionnelle non documentée ailleurs.*
+*Dernière mise à jour : 22 Mars 2026 — Sprint 3 livré (v0.3.0). Corrections workshop FIX-01→FIX-07 en priorité avant S4.*
+*Ce fichier fait autorité sur toute décision technique ou fonctionnelle. Docs complémentaires : fleetmanager-specs.json, DTF, CDC, DOC Fonctionnelle.*
