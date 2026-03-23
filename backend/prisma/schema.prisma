@@ -129,6 +129,7 @@ model Client {
   nom          String
   secteur      String
   adresse      String?
+  wilaya       String?   // wilaya d'implantation
   contactNom   String
   contactEmail String
   contactTel   String
@@ -218,7 +219,7 @@ model Rental {
   vehicleId      String
   clientId       String
   dateDebut      DateTime
-  dateFinPrevue  DateTime
+  dateFinPrevue  DateTime?     // null = contrat ouvert (pas de date de fin)
   dateFinReelle  DateTime?
   statut         RentalStatus @default(EN_COURS)
   montantMensuel Float?       // en DA
@@ -237,6 +238,7 @@ model Garage {
   nom        String       // nom de la société prestataire
   adresse    String
   ville      String
+  wilaya     String?      // wilaya d'implantation
   telephone  String
   email      String?
   specialite Specialty?
@@ -359,6 +361,7 @@ model InsurancePolicy {
   compagnie      String
   numeroPolice   String
   typeCouverture String          // ex: Tous risques, Tiers
+  adresseAgence  String?         // adresse de l'agence de souscription
   dateDebut      DateTime
   dateEcheance   DateTime
   primeMontant   Float           // DA/an

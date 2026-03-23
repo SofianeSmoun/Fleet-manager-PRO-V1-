@@ -1,14 +1,30 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma, MaintenanceStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import type { CreateGarageInput, UpdateGarageInput, GarageFilters } from '../schemas/garage.schema';
 
-export async function getGarages(filters: GarageFilters): Promise<{
-  data: Prisma.GarageGetPayload<{ include: { _count: { select: { maintenances: true } } } }>[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}> {
+const ACTIVE_STATUSES: MaintenanceStatus[] = ['EN_ATTENTE', 'EN_COURS'];
+
+const garageInclude = {
+  _count: {
+    select: {
+      maintenances: {
+        where: { statut: { in: ACTIVE_STATUSES } },
+      },
+    },
+  },
+  maintenances: {
+    where: { statut: { in: ACTIVE_STATUSES } },
+    select: {
+      id: true,
+      nature: true,
+      statut: true,
+      vehicle: { select: { immatriculation: true, marque: true, modele: true } },
+    },
+  },
+} as const;
+
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export async function getGarages(filters: GarageFilters) {
   const { page, limit, sortBy, order, statut, specialite, q } = filters;
   const skip = (page - 1) * limit;
 
@@ -25,15 +41,7 @@ export async function getGarages(filters: GarageFilters): Promise<{
   const [data, total] = await Promise.all([
     prisma.garage.findMany({
       where,
-      include: {
-        _count: {
-          select: {
-            maintenances: {
-              where: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } },
-            },
-          },
-        },
-      },
+      include: garageInclude,
       orderBy: { [sortBy]: order },
       skip,
       take: limit,
@@ -44,23 +52,12 @@ export async function getGarages(filters: GarageFilters): Promise<{
   return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
 }
 
-export async function getGarageById(
-  id: string | undefined,
-): Promise<Prisma.GarageGetPayload<{
-  include: { _count: { select: { maintenances: true } } };
-}> | null> {
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export async function getGarageById(id: string | undefined) {
   if (!id) return null;
   return prisma.garage.findFirst({
     where: { id, deletedAt: null },
-    include: {
-      _count: {
-        select: {
-          maintenances: {
-            where: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } },
-          },
-        },
-      },
-    },
+    include: garageInclude,
   });
 }
 
@@ -73,6 +70,7 @@ export async function createGarage(
     ville: data.ville,
     telephone: data.telephone,
   };
+  if (data.wilaya !== undefined) createData.wilaya = data.wilaya;
   if (data.email !== undefined) createData.email = data.email;
   if (data.specialite !== undefined) createData.specialite = data.specialite;
   if (data.notes !== undefined) createData.notes = data.notes;
@@ -93,6 +91,7 @@ export async function updateGarage(
   if (data.nom !== undefined) updateData.nom = data.nom;
   if (data.adresse !== undefined) updateData.adresse = data.adresse;
   if (data.ville !== undefined) updateData.ville = data.ville;
+  if (data.wilaya !== undefined) updateData.wilaya = data.wilaya;
   if (data.telephone !== undefined) updateData.telephone = data.telephone;
   if (data.email !== undefined) updateData.email = data.email;
   if (data.specialite !== undefined) updateData.specialite = data.specialite;
@@ -110,7 +109,7 @@ export async function softDeleteGarage(id: string | undefined): Promise<void> {
 
   // Block deletion if active maintenances
   const activeMaintenances = await prisma.maintenance.count({
-    where: { garageId: id, statut: { in: ['EN_ATTENTE', 'EN_COURS'] } },
+    where: { garageId: id, statut: { in: ACTIVE_STATUSES } },
   });
   if (activeMaintenances > 0) {
     throw Object.assign(

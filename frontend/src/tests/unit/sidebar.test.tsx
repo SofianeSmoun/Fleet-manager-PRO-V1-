@@ -45,7 +45,7 @@ function renderSidebar(currentPath = '/dashboard'): void {
 
 const ALL_LABELS = [
   'Dashboard', 'Flotte', 'Locations',
-  'Clients', 'Mécaniciens', 'Garages',
+  'Clients', 'Garages',
   'Stock', 'Assurances', 'Rapports', 'Paramètres',
 ];
 
@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 
 describe('Sidebar — RBAC visibility', () => {
-  it('ADMIN sees all 10 navigation items', () => {
+  it('ADMIN sees all 9 navigation items', () => {
     setRole('ADMIN');
     renderSidebar();
 
@@ -65,11 +65,11 @@ describe('Sidebar — RBAC visibility', () => {
     }
   });
 
-  it('GESTIONNAIRE sees 7 items — hides Assurances, Rapports, Paramètres', () => {
+  it('GESTIONNAIRE sees 6 items — hides Assurances, Rapports, Paramètres', () => {
     setRole('GESTIONNAIRE');
     renderSidebar();
 
-    const visible = ['Dashboard', 'Flotte', 'Locations', 'Clients', 'Mécaniciens', 'Garages', 'Stock'];
+    const visible = ['Dashboard', 'Flotte', 'Locations', 'Clients', 'Garages', 'Stock'];
     const hidden = ['Assurances', 'Rapports', 'Paramètres'];
 
     for (const label of visible) {
@@ -85,7 +85,7 @@ describe('Sidebar — RBAC visibility', () => {
     renderSidebar();
 
     const visible = ['Dashboard', 'Clients', 'Assurances'];
-    const hidden = ['Flotte', 'Locations', 'Mécaniciens', 'Garages', 'Stock', 'Rapports', 'Paramètres'];
+    const hidden = ['Flotte', 'Locations', 'Garages', 'Stock', 'Rapports', 'Paramètres'];
 
     for (const label of visible) {
       expect(screen.getByText(label)).toBeInTheDocument();
@@ -95,12 +95,12 @@ describe('Sidebar — RBAC visibility', () => {
     }
   });
 
-  it('LECTEUR sees 6 items — hides Garages, Assurances, Rapports, Paramètres', () => {
+  it('LECTEUR sees 5 items — hides Assurances, Rapports, Paramètres', () => {
     setRole('LECTEUR');
     renderSidebar();
 
-    const visible = ['Dashboard', 'Flotte', 'Locations', 'Clients', 'Mécaniciens', 'Stock'];
-    const hidden = ['Garages', 'Assurances', 'Rapports', 'Paramètres'];
+    const visible = ['Dashboard', 'Flotte', 'Locations', 'Clients', 'Garages', 'Stock'];
+    const hidden = ['Assurances', 'Rapports', 'Paramètres'];
 
     for (const label of visible) {
       expect(screen.getByText(label)).toBeInTheDocument();

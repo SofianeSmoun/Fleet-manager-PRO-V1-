@@ -218,7 +218,9 @@ export default function LocationsPage(): JSX.Element {
                       <td
                         className={`px-4 py-3 text-sm ${isOverdue ? 'text-[#C0392B] font-bold' : 'text-[#1A2332]'}`}
                       >
-                        {formatDate(r.dateFinPrevue)}
+                        {r.dateFinPrevue ? formatDate(r.dateFinPrevue) : (
+                          <span className="text-[#64748B] italic">Contrat ouvert</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-[#1A2332]">
                         {r.dateFinReelle ? formatDate(r.dateFinReelle) : '—'}
@@ -382,24 +384,27 @@ function CreateRentalModal({
   });
 
   const handleSubmit = useCallback((): void => {
-    if (!vehicleId || !clientId || !dateDebut || !dateFinPrevue) {
+    if (!vehicleId || !clientId || !dateDebut) {
       setError('Tous les champs obligatoires doivent être remplis');
       return;
     }
     const debut = new Date(dateDebut);
-    const fin = new Date(dateFinPrevue);
-    if (fin <= debut) {
-      setError('La date de fin prévue doit être postérieure à la date de début');
-      return;
+    if (dateFinPrevue) {
+      const fin = new Date(dateFinPrevue);
+      if (fin <= debut) {
+        setError('La date de fin prévue doit être postérieure à la date de début');
+        return;
+      }
     }
     setError('');
-    onSubmit({
+    const payload: Record<string, unknown> = {
       vehicleId,
       clientId,
       dateDebut: debut.toISOString(),
-      dateFinPrevue: fin.toISOString(),
-      notes: notes || undefined,
-    });
+    };
+    if (dateFinPrevue) payload.dateFinPrevue = new Date(dateFinPrevue).toISOString();
+    if (notes) payload.notes = notes;
+    onSubmit(payload);
   }, [vehicleId, clientId, dateDebut, dateFinPrevue, notes, onSubmit]);
 
   return (
@@ -450,7 +455,7 @@ function CreateRentalModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1A2332] mb-1">Date fin prévue *</label>
+              <label className="block text-sm font-medium text-[#1A2332] mb-1">Date fin prévue</label>
               <input
                 type="date"
                 className="w-full px-3 py-2 border border-[#E2E6ED] rounded-md text-sm"

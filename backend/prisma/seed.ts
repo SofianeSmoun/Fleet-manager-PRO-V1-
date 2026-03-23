@@ -98,6 +98,7 @@ async function main(): Promise<void> {
       nom: 'Cosider',
       secteur: 'BTP / Travaux Publics',
       adresse: 'Route Nationale N°1, Dar El Beïda, Alger',
+      wilaya: 'Alger',
       contactNom: 'Mourad Kellou',
       contactEmail: 'mkellou@cosider.dz',
       contactTel: '+213 21 50 00 10',
@@ -110,6 +111,7 @@ async function main(): Promise<void> {
       nom: 'Sonatrach',
       secteur: 'Pétrole & Gaz',
       adresse: 'Djenane El Malik, Hydra, Alger',
+      wilaya: 'Alger',
       contactNom: 'Fatima Zitoun',
       contactEmail: 'fzitoun@sonatrach.dz',
       contactTel: '+213 21 54 60 00',
@@ -122,6 +124,7 @@ async function main(): Promise<void> {
       nom: 'Sonelgaz',
       secteur: 'Énergie / Électricité & Gaz',
       adresse: '2 Boulevard Krim Belkacem, Alger Centre',
+      wilaya: 'Alger',
       contactNom: 'Rachid Benarfa',
       contactEmail: 'rbenarfa@sonelgaz.dz',
       contactTel: '+213 21 73 40 00',
@@ -134,6 +137,7 @@ async function main(): Promise<void> {
       nom: 'Agrodiv',
       secteur: 'Agriculture / Agroalimentaire',
       adresse: '5 Rue Hassiba Ben Bouali, Alger',
+      wilaya: 'Alger',
       contactNom: 'Samira Tebbal',
       contactEmail: 'stebbal@agrodiv.dz',
       contactTel: '+213 21 66 20 00',
@@ -149,6 +153,7 @@ async function main(): Promise<void> {
       nom: 'Auto Service Belcourt',
       adresse: '12 Rue Belouizdad',
       ville: 'Alger',
+      wilaya: 'Alger',
       telephone: '+213 21 67 45 20',
       email: 'contact@autoservice-belcourt.dz',
       specialite: Specialty.MECANIQUE_GENERALE,
@@ -161,6 +166,7 @@ async function main(): Promise<void> {
       nom: 'Garage Hussein Dey Élite',
       adresse: "45 Avenue de l'ALN",
       ville: 'Hussein Dey',
+      wilaya: 'Alger',
       telephone: '+213 21 77 33 11',
       email: 'elite@garage-hussein.dz',
       specialite: Specialty.MOTEUR_TRANSMISSION,
@@ -173,6 +179,7 @@ async function main(): Promise<void> {
       nom: 'Tech Auto Kouba',
       adresse: '8 Cité des Pins',
       ville: 'Kouba',
+      wilaya: 'Alger',
       telephone: '+213 21 68 90 55',
       specialite: Specialty.ELECTRICITE_AUTO,
       statut: GarageStatus.DISPONIBLE,
@@ -184,6 +191,7 @@ async function main(): Promise<void> {
       nom: 'Centre Auto Bab Ezzouar',
       adresse: 'Zone Industrielle Bab Ezzouar',
       ville: 'Bab Ezzouar',
+      wilaya: 'Alger',
       telephone: '+213 21 56 78 90',
       email: 'info@centreauto-babezzouar.dz',
       specialite: Specialty.CARROSSERIE,
@@ -196,6 +204,7 @@ async function main(): Promise<void> {
       nom: 'Pneumo Stop Dar El Beïda',
       adresse: "22 Route de l'Aéroport",
       ville: 'Dar El Beïda',
+      wilaya: 'Alger',
       telephone: '+213 21 50 12 34',
       specialite: Specialty.PNEUMATIQUES_FREINS,
       statut: GarageStatus.DISPONIBLE,
@@ -207,6 +216,7 @@ async function main(): Promise<void> {
       nom: 'Multiservice Bir Mourad Raïs',
       adresse: '3 Rue Hassiba Ben Bouali',
       ville: 'Bir Mourad Raïs',
+      wilaya: 'Alger',
       telephone: '+213 21 44 56 78',
       email: 'multiservice.bmr@gmail.com',
       specialite: Specialty.MECANIQUE_GENERALE,
@@ -589,6 +599,15 @@ async function main(): Promise<void> {
 
   const compagnies = ['CAAT', 'SAA', 'CASH Assurances', 'Alliance Assurances', 'TRUST Algérie', 'AXA Algérie', 'GAM Assurances'];
   const typesCouverture = ['Tous risques', 'Tiers', 'Tiers + Vol + Incendie'];
+  const agences = [
+    'CAAT Agence Didouche Mourad, Alger',
+    'SAA Agence Hussein Dey, Alger',
+    'CASH Agence Chéraga, Alger',
+    'Alliance Agence Kouba, Alger',
+    'TRUST Agence Bab Ezzouar, Alger',
+    'AXA Agence Hydra, Alger',
+    'GAM Agence Bir Mourad Raïs, Alger',
+  ];
 
   for (let i = 0; i < vehicles.length; i++) {
     const v = vehicles[i]!;
@@ -624,6 +643,7 @@ async function main(): Promise<void> {
         compagnie: compagnies[i % compagnies.length]!,
         numeroPolice: `POL-${String(2025 + (i % 2))}-${String(10000 + i)}`,
         typeCouverture: typesCouverture[i % typesCouverture.length]!,
+        adresseAgence: agences[i % agences.length]!,
         dateDebut,
         dateEcheance,
         primeMontant: 45000 + (i % 20) * 3000,

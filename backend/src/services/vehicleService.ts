@@ -96,18 +96,24 @@ export async function changeVehicleStatus(
   });
 }
 
-export async function getVehicles(filters: VehicleFilters): Promise<{
-  data: Prisma.VehicleGetPayload<{ include: { client: { select: { nom: true; couleur: true } } } }>[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}> {
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export async function getVehicles(filters: VehicleFilters) {
   const where: Prisma.VehicleWhereInput = { deletedAt: null };
 
   if (filters.statut) where.statut = filters.statut;
   if (filters.clientId) where.clientId = filters.clientId;
   if (filters.marque) where.marque = filters.marque;
+  if (filters.wilaya) where.client = { wilaya: filters.wilaya };
+  if (filters.maintenance === 'OUI') {
+    where.maintenances = { some: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } } };
+  } else if (filters.maintenance === 'NON') {
+    where.maintenances = { none: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } } };
+  }
+  if (filters.from || filters.to) {
+    where.createdAt = {};
+    if (filters.from) where.createdAt.gte = new Date(filters.from);
+    if (filters.to) where.createdAt.lte = new Date(filters.to);
+  }
   if (filters.q) {
     where.OR = [
       { immatriculation: { contains: filters.q, mode: 'insensitive' } },
@@ -125,7 +131,21 @@ export async function getVehicles(filters: VehicleFilters): Promise<{
   const [data, total] = await Promise.all([
     prisma.vehicle.findMany({
       where,
-      include: { client: { select: { nom: true, couleur: true } } },
+      include: {
+        client: { select: { nom: true, couleur: true, wilaya: true } },
+        rentals: {
+          where: { statut: 'EN_COURS' },
+          select: { dateDebut: true, dateFinPrevue: true },
+          take: 1,
+          orderBy: { dateDebut: 'desc' },
+        },
+        maintenances: {
+          where: { statut: { in: ['EN_ATTENTE', 'EN_COURS'] } },
+          select: { nature: true, statut: true },
+          take: 1,
+          orderBy: { dateEntree: 'desc' },
+        },
+      },
       orderBy,
       skip,
       take: filters.limit,

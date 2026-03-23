@@ -6,22 +6,21 @@
 
 ## État du projet
 
-**Version :** v0.3.0 (tag v0.3.0) · **Branche active :** `develop` · **Avancement :** ~40% V1 · **Tests :** 139 ✅ (55 unit backend + 62 intégration + 22 unit frontend)
+**Version :** v0.3.1-fix · **Branche active :** `feature/phase-1-workshop-fixes` · **Avancement :** ~45% V1 · **Tests :** 127 ✅ (49 unit backend + 62 intégration + 16 unit frontend)
 
 | Sprint | Statut |
 |--------|--------|
 | S1 — Infra & Auth | ✅ v0.1.0 |
 | S2 — Flotte & Locations | ✅ v0.2.0 |
 | S3 — Sidebar, Clients, Garages, Mécaniciens | ✅ v0.3.0 |
-| FIX — Corrections workshop 22 mars | 🔴 PRIORITÉ IMMÉDIATE |
+| FIX — Corrections workshop 22 mars | ✅ FIX-01→07 (sauf FIX-04 → S4) |
 | S4 → S8 — Interventions, Stock, Dashboard, Alertes, Finalisation | 🆕 À VENIR |
 
 ### Prochaines actions (dans l'ordre)
 
-1. Résoudre les 6 vulnérabilités Dependabot (5 high, 1 moderate)
-2. `git merge main` dans `develop`
-3. Corrections FIX-01 à FIX-07 (voir DTF_FleetManager_Pro.docx §3)
-4. Sprint 4 : module Interventions & Maintenance
+1. Merge `feature/phase-1-workshop-fixes` → `develop` via PR
+2. FIX-04 : popup détail maintenance (Sprint 4)
+3. Sprint 4 : module Interventions & Maintenance
 
 ---
 
@@ -41,7 +40,7 @@ docker ps --format '{{.Names}} {{.Status}}'
 ```bash
 pnpm --filter backend run dev                    # port 3000
 pnpm --filter backend run typecheck              # OBLIGATOIRE avant commit
-pnpm --filter backend run test:unit              # 55 tests (pas de DB)
+pnpm --filter backend run test:unit              # 49 tests (pas de DB)
 pnpm --filter backend run test:integration       # 62 tests (nécessite Docker postgres)
 pnpm --filter backend run test                   # tous les tests
 pnpm --filter backend exec vitest run src/tests/unit/<fichier>.test.ts  # un seul fichier
@@ -57,7 +56,7 @@ pnpm --filter backend run db:studio
 pnpm --filter frontend run dev                   # port 8080
 pnpm --filter frontend run typecheck
 pnpm --filter frontend run build
-pnpm --filter frontend run test:unit             # 22 tests
+pnpm --filter frontend run test:unit             # 16 tests
 ```
 
 ### Monorepo (racine)
@@ -102,24 +101,24 @@ pnpm --filter backend exec tsx src/scripts/testBackup.ts restore <chemin.enc>
 │   └── src/
 │       ├── index.ts               ← Express app (Swagger à /api/docs en dev)
 │       ├── lib/                   ← prisma.ts, logger.ts, schemas.ts, swagger.ts, encryption.ts
-│       ├── schemas/               ← Zod (rental, garage)
+│       ├── schemas/               ← Zod (rental, garage, client, vehicle)
 │       ├── middleware/            ← auth.ts, auditLog.ts, validate.ts, errorHandler.ts, notFound.ts
-│       ├── routes/                ← auth, vehicles, rentals, clients, garages, mechanics, auditLogs, backup
+│       ├── routes/                ← auth, vehicles, rentals, clients, garages, auditLogs, backup
 │       ├── controllers/           ← orchestration HTTP uniquement (ZÉRO logique métier)
-│       ├── services/              ← TOUTE logique métier ici (vehicle, rental, garage, mechanic, auth, backup)
+│       ├── services/              ← TOUTE logique métier ici (vehicle, rental, garage, client, auth, backup)
 │       ├── scheduler/             ← node-cron backup hebdo dimanche 02h00
 │       └── tests/
 │           ├── helpers/           ← testDb.ts (seed + loginAs), testServer.ts
-│           ├── unit/              ← vehicle (22), rental (15), garage (12), mechanic (6)
-│           └── integration/       ← auth (12), vehicles (17), rentals (9), clients (7), garages (5), mechanics (4), audit (3), backup (5)
+│           ├── unit/              ← vehicle (22), rental (15), garage (12)
+│           └── integration/       ← auth (12), vehicles (17), rentals (9), clients (7), garages (5), audit (3), backup (5)
 └── frontend/
     └── src/
         ├── lib/                   ← axios.ts (intercepteur JWT), auth-token.ts (stockage mémoire)
         ├── types/                 ← enums miroir Prisma, Vehicle, Rental, Client, Garage
         ├── hooks/                 ← useAuth, useVehicles, useRentals, useClients, useGarages
         ├── components/            ← StatusBadge, EmptyState, VehicleFormModal, layout/ (AppLayout, Sidebar, RoleGuard)
-        ├── pages/                 ← Login, Dashboard, Flotte, VehicleDetail, Locations, Clients, ClientDetail, Garages, Mecaniciens, AccessDenied
-        └── tests/unit/            ← sidebar (8), clients (5), mechanics (9)
+        ├── pages/                 ← Login, Dashboard, Flotte, VehicleDetail, Locations, Clients, ClientDetail, Garages, AccessDenied
+        └── tests/unit/            ← sidebar (8), clients (8)
 ```
 
 ### Flux auth
@@ -217,29 +216,27 @@ Base : /api/v1 | Auth : Bearer <access_token> | Format : JSON | Pagination : ?pa
 
 Codes : 200 OK · 201 Created · 400 Bad Request (transition invalide) · 401 Unauthorized · 403 Forbidden · 404 Not Found · 422 Validation (Zod) · 500 Server Error
 
-### Endpoints implémentés (v0.3.0)
+### Endpoints implémentés (v0.3.1-fix)
 
 ```
 POST   /auth/login|refresh|logout|forgot-password|reset-password
 
-GET|POST         /vehicles
+GET|POST         /vehicles          (filters: statut, marque, wilaya, maintenance, from/to, q)
 GET|PATCH|DELETE  /vehicles/:id
 PATCH             /vehicles/:id/status|km
 GET               /vehicles/:id/history
 GET               /vehicles/export/excel
 
-GET|POST         /rentals
+GET|POST         /rentals           (dateFinPrevue optionnelle = contrat ouvert)
 GET               /rentals/:id
 PATCH             /rentals/:id/close
 
-GET               /clients
+GET|POST         /clients           (filters: wilaya, secteur, q + _count.vehicles)
 GET               /clients/:id|/:id/detail
-POST|PATCH|DELETE /clients/:id (CRUD)
+PATCH|DELETE      /clients/:id
 
-GET|POST         /garages
+GET|POST         /garages           (includes: active maintenances + workload)
 GET|PATCH|DELETE  /garages/:id
-
-GET               /mechanics (workload)
 
 GET               /audit-logs (ADMIN)
 GET|POST          /admin/backup/status|trigger (ADMIN)
@@ -321,7 +318,7 @@ Seed bloqué en `NODE_ENV=production`. Empty states obligatoires sur toutes les 
 |----------|-------|--------|
 | PDF export | jsPDF (navigateur) | VPS 4Go RAM — Puppeteer exclu |
 | Alertes V1 | InApp uniquement | Email = V2 premium |
-| Mécaniciens | Fusionner dans Garages (FIX-02) | PME = prestataires externes uniquement |
+| Mécaniciens | Fusionné dans Garages (FIX-02 ✅) | PME = prestataires externes uniquement |
 | Backup | Local AES-256-GCM | Google Drive reporté V2 (quota Service Account) |
 | Queue | node-cron | BullMQ/Redis = over-engineering pour 7 jobs/jour |
 | Monitoring | Winston + UptimeRobot | Grafana/Loki = overkill pour 3 users |
@@ -347,15 +344,15 @@ Seed bloqué en `NODE_ENV=production`. Empty states obligatoires sur toutes les 
 
 > Détail complet dans DTF_FleetManager_Pro.docx §3 et DOC_Fonctionnelle §12
 
-| Réf | Module | Description | Priorité |
-|-----|--------|-------------|----------|
-| FIX-01 | Clients | Refonte → tableau paginé + colonnes Wilaya/Véhicules loués + bouton Ajouter + filtres | HAUTE |
-| FIX-02 | Garages | Fusion Mécaniciens dans Garages — supprimer /mecaniciens + sidebar | HAUTE |
-| FIX-03 | Flotte | Colonnes Wilaya + Date début/fin location + Maintenance | HAUTE |
-| FIX-04 | Flotte | Popup détail maintenance (type, garage, dates, pièces, lien intervention) | HAUTE |
-| FIX-05 | Flotte | Filtres Wilaya + Maintenance OUI/NON + Période | MOYENNE |
-| FIX-06 | Assurances | Champ adresse agence souscription | MOYENNE |
-| FIX-07 | Locations | Date fin optionnelle (contrat ouvert) | MOYENNE |
+| Réf | Module | Description | Statut |
+|-----|--------|-------------|--------|
+| FIX-01 | Clients | Refonte → tableau paginé + colonnes Wilaya/Véhicules loués + CRUD + filtres | ✅ |
+| FIX-02 | Garages | Fusion Mécaniciens dans Garages — supprimé /mecaniciens + sidebar + tests | ✅ |
+| FIX-03 | Flotte | Colonnes Wilaya + Date début/fin location + Maintenance | ✅ |
+| FIX-04 | Flotte | Popup détail maintenance (type, garage, dates, pièces, lien intervention) | ⏳ Sprint 4 |
+| FIX-05 | Flotte | Filtres Wilaya + Maintenance OUI/NON + Période | ✅ |
+| FIX-06 | Assurances | Champ adresseAgence dans InsurancePolicy | ✅ |
+| FIX-07 | Locations | dateFinPrevue optionnelle (contrat ouvert) + EN_RETARD adapté | ✅ |
 
 ---
 
@@ -371,5 +368,5 @@ Seed bloqué en `NODE_ENV=production`. Empty states obligatoires sur toutes les 
 
 ---
 
-*Dernière mise à jour : 22 Mars 2026 — Sprint 3 livré (v0.3.0). Corrections workshop FIX-01→FIX-07 en priorité avant S4.*
+*Dernière mise à jour : 23 Mars 2026 — Corrections workshop FIX-01→FIX-07 livrées (sauf FIX-04 → S4). Branche `feature/phase-1-workshop-fixes` prête pour PR → develop.*
 *Ce fichier fait autorité sur toute décision technique ou fonctionnelle. Docs complémentaires : fleetmanager-specs.json, DTF, CDC, DOC Fonctionnelle.*
