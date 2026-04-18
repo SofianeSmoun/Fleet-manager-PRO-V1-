@@ -210,7 +210,7 @@ function RentalsTab({ vehicleId }: { vehicleId: string }): JSX.Element {
         {rentals.map((r) => (
           <tr key={r.id} className="border-t border-[#E2E6ED]">
             <td className="px-4 py-3 text-sm">{formatDate(r.dateDebut)}</td>
-            <td className="px-4 py-3 text-sm">{formatDate(r.dateFinPrevue)}</td>
+            <td className="px-4 py-3 text-sm">{r.dateFinPrevue ? formatDate(r.dateFinPrevue) : <span className="text-[#64748B] italic">Ouvert</span>}</td>
             <td className="px-4 py-3 text-sm">{r.dateFinReelle ? formatDate(r.dateFinReelle) : '—'}</td>
             <td className="px-4 py-3"><StatusBadge status={r.statut} /></td>
             <td className="px-4 py-3 text-sm">

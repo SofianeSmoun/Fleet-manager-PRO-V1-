@@ -4,6 +4,9 @@ const STATUS_STYLES: Record<string, { bg: string; text: string; label?: string }
   LOUE: { bg: 'bg-[#EBF5FB]', text: 'text-[#1D6FA4]', label: 'Loué' },
   MAINTENANCE: { bg: 'bg-[#FEF3C7]', text: 'text-[#B45309]' },
   HORS_SERVICE: { bg: 'bg-[#F0F2F5]', text: 'text-[#4A5568]', label: 'Hors service' },
+  // Garage statuses
+  OCCUPE: { bg: 'bg-[#FEF3C7]', text: 'text-[#B45309]', label: 'Occupé' },
+  INDISPONIBLE: { bg: 'bg-[#FDECEA]', text: 'text-[#C0392B]', label: 'Indisponible' },
   // Maintenance / Rental statuses
   EN_ATTENTE: { bg: 'bg-[#F0F2F5]', text: 'text-[#4A5568]', label: 'En attente' },
   EN_COURS: { bg: 'bg-[#EBF5FB]', text: 'text-[#1D6FA4]', label: 'En cours' },

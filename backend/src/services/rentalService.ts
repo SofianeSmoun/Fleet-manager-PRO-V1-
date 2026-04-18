@@ -12,7 +12,7 @@ interface RentalWithRelations {
   vehicleId: string;
   clientId: string;
   dateDebut: Date;
-  dateFinPrevue: Date;
+  dateFinPrevue: Date | null;
   dateFinReelle: Date | null;
   statut: string;
   montantMensuel: number | null;
@@ -25,7 +25,8 @@ interface RentalWithRelations {
 }
 
 function computeRentalStatus(rental: RentalWithRelations): RentalWithRelations {
-  if (rental.statut === 'EN_COURS' && new Date(rental.dateFinPrevue) < new Date()) {
+  // Open contracts (dateFinPrevue null) can never be overdue
+  if (rental.statut === 'EN_COURS' && rental.dateFinPrevue && new Date(rental.dateFinPrevue) < new Date()) {
     return { ...rental, statut: 'EN_RETARD' };
   }
   return rental;
@@ -128,15 +129,26 @@ export async function createRental(
   }
 
   // Create rental + transition vehicle to LOUE in a transaction
+  const rentalData: {
+    vehicleId: string;
+    clientId: string;
+    dateDebut: Date;
+    dateFinPrevue?: Date;
+    statut: 'EN_COURS';
+    notes: string | null;
+  } = {
+    vehicleId: data.vehicleId,
+    clientId: data.clientId,
+    dateDebut: new Date(data.dateDebut),
+    statut: 'EN_COURS',
+    notes: data.notes ?? null,
+  };
+  if (data.dateFinPrevue !== undefined) {
+    rentalData.dateFinPrevue = new Date(data.dateFinPrevue);
+  }
+
   const rental = await prisma.rental.create({
-    data: {
-      vehicleId: data.vehicleId,
-      clientId: data.clientId,
-      dateDebut: new Date(data.dateDebut),
-      dateFinPrevue: new Date(data.dateFinPrevue),
-      statut: 'EN_COURS',
-      notes: data.notes ?? null,
-    },
+    data: rentalData,
   });
 
   // Transition vehicle DISPONIBLE → LOUE
@@ -204,7 +216,9 @@ export async function updateRental(id: string, data: UpdateRentalInput): Promise
   }
 
   const updateData: Prisma.RentalUpdateInput = {};
-  if (data.dateFinPrevue !== undefined) updateData.dateFinPrevue = new Date(data.dateFinPrevue);
+  if (data.dateFinPrevue !== undefined) {
+    updateData.dateFinPrevue = data.dateFinPrevue === null ? null : new Date(data.dateFinPrevue);
+  }
   if (data.notes !== undefined) updateData.notes = data.notes;
 
   return prisma.rental.update({

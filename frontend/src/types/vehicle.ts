@@ -29,7 +29,9 @@ export interface Vehicle {
   clientId: string;
   createdAt: string;
   updatedAt: string;
-  client: { nom: string; couleur: string };
+  client: { nom: string; couleur: string; wilaya?: string | null | undefined };
+  rentals?: { dateDebut: string; dateFinPrevue: string | null }[] | undefined;
+  maintenances?: { nature: string; statut: string }[] | undefined;
 }
 
 export interface VehicleDetail extends Vehicle {
@@ -44,7 +46,7 @@ export interface Rental {
   vehicleId: string;
   clientId: string;
   dateDebut: string;
-  dateFinPrevue: string;
+  dateFinPrevue: string | null;
   dateFinReelle?: string;
   statut: RentalStatus;
   montantMensuel?: number;
@@ -75,6 +77,7 @@ export interface InsurancePolicy {
   compagnie: string;
   numeroPolice: string;
   typeCouverture: string;
+  adresseAgence?: string | null | undefined;
   dateDebut: string;
   dateEcheance: string;
   primeMontant: number;
@@ -97,6 +100,10 @@ export interface VehicleFilters {
   statut?: VehicleStatus | undefined;
   clientId?: string | undefined;
   marque?: string | undefined;
+  wilaya?: string | undefined;
+  maintenance?: 'OUI' | 'NON' | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
   q?: string | undefined;
   page?: number | undefined;
   limit?: number | undefined;
